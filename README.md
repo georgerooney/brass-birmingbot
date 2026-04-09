@@ -57,19 +57,23 @@ A "Brass Vision" replay tool for debugging and strategy review.
 
 ## 🚦 Quick Start
 
-1.  **Start Engine Server**:
+1.  **Install Dependencies**:
     ```bash
-    go run ./server
+    make install
     ```
-2.  **Training**:
+2.  **Start Engine Server**:
     ```bash
-    cd python
-    uv run train.py
+    make build
+    ./main.exe
     ```
-3.  **Visualization**:
+3.  **Training**:
     ```bash
-    cd dashboard-v2
-    npm run dev
+    make train
+    ```
+4.  **Visualize Agent**:
+    ```bash
+    make eval
+    make dashboard
     ```
 
 ---

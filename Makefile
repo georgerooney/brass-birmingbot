@@ -7,6 +7,7 @@ DASHBOARD_DATA_DIR = dashboard-v2/public/data
 
 help:
 	@echo "Brass Project Management Commands:"
+	@echo "  make install      - Install all dependencies (Python uv + Dashboard npm)"
 	@echo "  make build        - Compile the Go engine server"
 	@echo "  make train        - Start the RL training pipeline (uv + python)"
 	@echo "  make eval         - Run evaluation and update dashboard data"
@@ -16,6 +17,13 @@ help:
 build:
 	@echo "Building Go engine..."
 	go build -o main.exe main.go
+
+install:
+	@echo "Installing all dependencies..."
+	@echo "1/2: Python (uv sync)..."
+	cd python && uv sync
+	@echo "2/2: Dashboard (npm install)..."
+	cd dashboard-v2 && npm install
 
 train:
 	@echo "Starting RL training..."
