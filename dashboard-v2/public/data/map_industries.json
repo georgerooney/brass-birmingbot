@@ -1,0 +1,222 @@
+{
+    "build_slots": {
+        "Belper": [
+            [
+                "cotton",
+                "goods"
+            ],
+            [
+                "coal"
+            ],
+            [
+                "pottery"
+            ]
+        ],
+        "Birmingham": [
+            [
+                "cotton",
+                "goods"
+            ],
+            [
+                "goods"
+            ],
+            [
+                "goods"
+            ],
+            [
+                "iron"
+            ]
+        ],
+        "Burton-upon-Trent": [
+            [
+                "coal",
+                "goods"
+            ],
+            [
+                "brewery"
+            ]
+        ],
+        "Cannock": [
+            [
+                "coal",
+                "goods"
+            ],
+            [
+                "coal"
+            ]
+        ],
+        "Coalbrookdale": [
+            [
+                "iron"
+            ],
+            [
+                "iron",
+                "brewery"
+            ],
+            [
+                "coal"
+            ]
+        ],
+        "Coventry": [
+            [
+                "pottery"
+            ],
+            [
+                "goods",
+                "coal"
+            ],
+            [
+                "iron",
+                "goods"
+            ]
+        ],
+        "Derby": [
+            [
+                "cotton",
+                "goods"
+            ],
+            [
+                "iron"
+            ],
+            [
+                "cotton",
+                "brewery"
+            ]
+        ],
+        "Dudley": [
+            [
+                "coal"
+            ],
+            [
+                "iron"
+            ]
+        ],
+        "Kidderminster": [
+            [
+                "coal",
+                "cotton"
+            ],
+            [
+                "cotton"
+            ]
+        ],
+        "Leek": [
+            [
+                "cotton",
+                "goods"
+            ],
+            [
+                "cotton",
+                "coal"
+            ]
+        ],
+        "Nuneaton": [
+            [
+                "goods",
+                "brewery"
+            ],
+            [
+                "cotton",
+                "coal"
+            ]
+        ],
+        "Redditch": [
+            [
+                "goods",
+                "coal"
+            ],
+            [
+                "iron"
+            ]
+        ],
+        "Stafford": [
+            [
+                "pottery"
+            ],
+            [
+                "brewery",
+                "goods"
+            ]
+        ],
+        "Stoke-on-Trent": [
+            [
+                "cotton",
+                "goods"
+            ],
+            [
+                "pottery",
+                "iron"
+            ],
+            [
+                "goods"
+            ]
+        ],
+        "Stone": [
+            [
+                "cotton",
+                "brewery"
+            ],
+            [
+                "goods",
+                "coal"
+            ]
+        ],
+        "Tamworth": [
+            [
+                "cotton",
+                "coal"
+            ],
+            [
+                "cotton",
+                "coal"
+            ]
+        ],
+        "Uttoxeter": [
+            [
+                "cotton",
+                "brewery"
+            ],
+            [
+                "goods",
+                "brewery"
+            ]
+        ],
+        "Walsall": [
+            [
+                "iron",
+                "goods"
+            ],
+            [
+                "goods",
+                "brewery"
+            ]
+        ],
+        "Wolverhampton": [
+            [
+                "coal",
+                "goods"
+            ],
+            [
+                "goods"
+            ]
+        ],
+        "Worcester": [
+            [
+                "cotton"
+            ],
+            [
+                "cotton"
+            ]
+        ],
+        "Farm Brewery North": [
+            [
+                "brewery"
+            ]
+        ],
+        "Farm Brewery South": [
+            [
+                "brewery"
+            ]
+        ]
+    }
+}

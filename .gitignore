@@ -1,0 +1,65 @@
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Python
+**/__pycache__/
+*.py[cod]
+*$py.class
+**/.venv/
+**/venv/
+**/ENV/
+**/env/
+**/runs/
+**/eval_data/
+**/eval_data_latest/
+**/eval_data_expert_analysis/
+
+# UI / Node
+**/node_modules/
+**/dist/
+**/dist-ssr/
+**/build/
+**/public/data/traces/
+**/public/data/analysis_data.json
+**/public/data/eval_index.json
+**/public/data/heatmap.json
+.eslintcache
+*.local
+
+# Artifacts
+*.zip
+*.tar.gz
+*.rar
+*.7z
+*.model
+*.pth
+
+# Secrets
+.env*
+*.secret
+credentials.json
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.suo
+*.sln
+*.ntvs*
+*.njsproj

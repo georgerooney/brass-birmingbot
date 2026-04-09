@@ -1,0 +1,126 @@
+{
+    "merchant_pools": {
+        "2": [
+            {
+                "id": "empty_1",
+                "accepts": []
+            },
+            {
+                "id": "empty_2",
+                "accepts": []
+            },
+            {
+                "id": "goods_1",
+                "accepts": [
+                    "goods"
+                ]
+            },
+            {
+                "id": "cotton_1",
+                "accepts": [
+                    "cotton"
+                ]
+            },
+            {
+                "id": "any_1",
+                "accepts": [
+                    "cotton",
+                    "goods",
+                    "pottery"
+                ]
+            }
+        ],
+        "3": [
+            {
+                "id": "empty_1",
+                "accepts": []
+            },
+            {
+                "id": "empty_2",
+                "accepts": []
+            },
+            {
+                "id": "empty_3",
+                "accepts": []
+            },
+            {
+                "id": "goods_1",
+                "accepts": [
+                    "goods"
+                ]
+            },
+            {
+                "id": "cotton_1",
+                "accepts": [
+                    "cotton"
+                ]
+            },
+            {
+                "id": "pottery_1",
+                "accepts": [
+                    "pottery"
+                ]
+            },
+            {
+                "id": "any_1",
+                "accepts": [
+                    "cotton",
+                    "goods",
+                    "pottery"
+                ]
+            }
+        ],
+        "4": [
+            {
+                "id": "empty_1",
+                "accepts": []
+            },
+            {
+                "id": "empty_2",
+                "accepts": []
+            },
+            {
+                "id": "empty_3",
+                "accepts": []
+            },
+            {
+                "id": "goods_1",
+                "accepts": [
+                    "goods"
+                ]
+            },
+            {
+                "id": "goods_2",
+                "accepts": [
+                    "goods"
+                ]
+            },
+            {
+                "id": "cotton_1",
+                "accepts": [
+                    "cotton"
+                ]
+            },
+            {
+                "id": "cotton_2",
+                "accepts": [
+                    "cotton"
+                ]
+            },
+            {
+                "id": "pottery_1",
+                "accepts": [
+                    "pottery"
+                ]
+            },
+            {
+                "id": "any_1",
+                "accepts": [
+                    "cotton",
+                    "goods",
+                    "pottery"
+                ]
+            }
+        ]
+    }
+}

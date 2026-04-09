@@ -1,0 +1,315 @@
+{
+    "nodes": {
+        "merchants": [
+            {
+                "id": "M1",
+                "name": "Warrington"
+            },
+            {
+                "id": "M2",
+                "name": "Nottingham"
+            },
+            {
+                "id": "M3",
+                "name": "Shrewsbury"
+            },
+            {
+                "id": "M4",
+                "name": "Gloucester"
+            },
+            {
+                "id": "M5",
+                "name": "Oxford"
+            }
+        ],
+        "cities": [
+            {
+                "id": "C1",
+                "name": "Belper"
+            },
+            {
+                "id": "C2",
+                "name": "Birmingham"
+            },
+            {
+                "id": "C3",
+                "name": "Burton-upon-Trent"
+            },
+            {
+                "id": "C4",
+                "name": "Cannock"
+            },
+            {
+                "id": "C5",
+                "name": "Coalbrookdale"
+            },
+            {
+                "id": "C6",
+                "name": "Coventry"
+            },
+            {
+                "id": "C7",
+                "name": "Derby"
+            },
+            {
+                "id": "C8",
+                "name": "Dudley"
+            },
+            {
+                "id": "C9",
+                "name": "Kidderminster"
+            },
+            {
+                "id": "C10",
+                "name": "Leek"
+            },
+            {
+                "id": "C11",
+                "name": "Nuneaton"
+            },
+            {
+                "id": "C12",
+                "name": "Redditch"
+            },
+            {
+                "id": "C13",
+                "name": "Stafford"
+            },
+            {
+                "id": "C14",
+                "name": "Stoke-on-Trent"
+            },
+            {
+                "id": "C15",
+                "name": "Stone"
+            },
+            {
+                "id": "C16",
+                "name": "Tamworth"
+            },
+            {
+                "id": "C17",
+                "name": "Uttoxeter"
+            },
+            {
+                "id": "C18",
+                "name": "Walsall"
+            },
+            {
+                "id": "C19",
+                "name": "Wolverhampton"
+            },
+            {
+                "id": "C20",
+                "name": "Worcester"
+            }
+        ],
+        "farm_breweries": [
+            {
+                "id": "FB1",
+                "name": "Farm Brewery North"
+            },
+            {
+                "id": "FB2",
+                "name": "Farm Brewery South"
+            }
+        ]
+    },
+    "edges": [
+        {
+            "source": "Cannock",
+            "target": "Farm Brewery North",
+            "type": "both"
+        },
+        {
+            "source": "Birmingham",
+            "target": "Oxford",
+            "type": "both"
+        },
+        {
+            "source": "Warrington",
+            "target": "Stoke-on-Trent",
+            "type": "both"
+        },
+        {
+            "source": "Leek",
+            "target": "Stoke-on-Trent",
+            "type": "both"
+        },
+        {
+            "source": "Leek",
+            "target": "Belper",
+            "type": "rail_only"
+        },
+        {
+            "source": "Belper",
+            "target": "Derby",
+            "type": "both"
+        },
+        {
+            "source": "Derby",
+            "target": "Nottingham",
+            "type": "both"
+        },
+        {
+            "source": "Burton-upon-Trent",
+            "target": "Cannock",
+            "type": "rail_only"
+        },
+        {
+            "source": "Derby",
+            "target": "Burton-upon-Trent",
+            "type": "both"
+        },
+        {
+            "source": "Stone",
+            "target": "Burton-upon-Trent",
+            "type": "both"
+        },
+        {
+            "source": "Stone",
+            "target": "Uttoxeter",
+            "type": "rail_only"
+        },
+        {
+            "source": "Uttoxeter",
+            "target": "Derby",
+            "type": "rail_only"
+        },
+        {
+            "source": "Stoke-on-Trent",
+            "target": "Stone",
+            "type": "both"
+        },
+        {
+            "source": "Stone",
+            "target": "Stafford",
+            "type": "both"
+        },
+        {
+            "source": "Stafford",
+            "target": "Cannock",
+            "type": "both"
+        },
+        {
+            "source": "Cannock",
+            "target": "Wolverhampton",
+            "type": "both"
+        },
+        {
+            "source": "Cannock",
+            "target": "Walsall",
+            "type": "both"
+        },
+        {
+            "source": "Walsall",
+            "target": "Burton-upon-Trent",
+            "type": "canal_only"
+        },
+        {
+            "source": "Burton-upon-Trent",
+            "target": "Tamworth",
+            "type": "both"
+        },
+        {
+            "source": "Tamworth",
+            "target": "Walsall",
+            "type": "rail_only"
+        },
+        {
+            "source": "Tamworth",
+            "target": "Nuneaton",
+            "type": "both"
+        },
+        {
+            "source": "Nuneaton",
+            "target": "Coventry",
+            "type": "rail_only"
+        },
+        {
+            "source": "Walsall",
+            "target": "Birmingham",
+            "type": "both"
+        },
+        {
+            "source": "Wolverhampton",
+            "target": "Walsall",
+            "type": "both"
+        },
+        {
+            "source": "Wolverhampton",
+            "target": "Dudley",
+            "type": "both"
+        },
+        {
+            "source": "Coalbrookdale",
+            "target": "Wolverhampton",
+            "type": "both"
+        },
+        {
+            "source": "Shrewsbury",
+            "target": "Coalbrookdale",
+            "type": "both"
+        },
+        {
+            "source": "Coalbrookdale",
+            "target": "Kidderminster",
+            "type": "both"
+        },
+        {
+            "source": "Dudley",
+            "target": "Birmingham",
+            "type": "both"
+        },
+        {
+            "source": "Dudley",
+            "target": "Kidderminster",
+            "type": "both"
+        },
+        {
+            "source": "Kidderminster",
+            "target": "Worcester",
+            "type": "both"
+        },
+        {
+            "source": "Worcester",
+            "target": "Gloucester",
+            "type": "both"
+        },
+        {
+            "source": "Worcester",
+            "target": "Birmingham",
+            "type": "both"
+        },
+        {
+            "source": "Birmingham",
+            "target": "Tamworth",
+            "type": "both"
+        },
+        {
+            "source": "Birmingham",
+            "target": "Coventry",
+            "type": "both"
+        },
+        {
+            "source": "Birmingham",
+            "target": "Redditch",
+            "type": "rail_only"
+        },
+        {
+            "source": "Birmingham",
+            "target": "Nuneaton",
+            "type": "rail_only"
+        },
+        {
+            "source": "Redditch",
+            "target": "Oxford",
+            "type": "both"
+        },
+        {
+            "source": "Redditch",
+            "target": "Gloucester",
+            "type": "both"
+        }
+    ]
+}

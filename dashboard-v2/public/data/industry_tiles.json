@@ -1,0 +1,529 @@
+{
+    "cotton": [
+        {
+            "level": 1,
+            "count": 3,
+            "income": 5,
+            "vp": 5,
+            "link_vp": 1,
+            "cost_money": 12,
+            "cost_coal": 0,
+            "cost_iron": 0,
+            "cost_beer_to_sell": 1,
+            "yield_canal": 0,
+            "yield_rail": 0,
+            "is_developable": true,
+            "eras": [
+                "canal"
+            ]
+        },
+        {
+            "level": 2,
+            "count": 2,
+            "income": 4,
+            "vp": 5,
+            "link_vp": 2,
+            "cost_money": 14,
+            "cost_coal": 0,
+            "cost_iron": 1,
+            "cost_beer_to_sell": 1,
+            "yield_canal": 0,
+            "yield_rail": 0,
+            "is_developable": true,
+            "eras": [
+                "canal",
+                "rail"
+            ]
+        },
+        {
+            "level": 3,
+            "count": 3,
+            "income": 3,
+            "vp": 9,
+            "link_vp": 1,
+            "cost_money": 16,
+            "cost_coal": 1,
+            "cost_iron": 1,
+            "cost_beer_to_sell": 1,
+            "yield_canal": 0,
+            "yield_rail": 0,
+            "is_developable": true,
+            "eras": [
+                "canal",
+                "rail"
+            ]
+        },
+        {
+            "level": 4,
+            "count": 3,
+            "income": 2,
+            "vp": 12,
+            "link_vp": 1,
+            "cost_money": 18,
+            "cost_coal": 1,
+            "cost_iron": 1,
+            "cost_beer_to_sell": 1,
+            "yield_canal": 0,
+            "yield_rail": 0,
+            "is_developable": true,
+            "eras": [
+                "canal",
+                "rail"
+            ]
+        }
+    ],
+    "iron": [
+        {
+            "level": 1,
+            "count": 1,
+            "income": 3,
+            "vp": 3,
+            "link_vp": 1,
+            "cost_money": 5,
+            "cost_coal": 0,
+            "cost_iron": 1,
+            "cost_beer_to_sell": 0,
+            "yield_canal": 4,
+            "yield_rail": 4,
+            "is_developable": true,
+            "eras": [
+                "canal"
+            ]
+        },
+        {
+            "level": 2,
+            "count": 1,
+            "income": 3,
+            "vp": 5,
+            "link_vp": 1,
+            "cost_money": 7,
+            "cost_coal": 0,
+            "cost_iron": 1,
+            "cost_beer_to_sell": 0,
+            "yield_canal": 4,
+            "yield_rail": 4,
+            "is_developable": true,
+            "eras": [
+                "canal",
+                "rail"
+            ]
+        },
+        {
+            "level": 3,
+            "count": 1,
+            "income": 2,
+            "vp": 7,
+            "link_vp": 1,
+            "cost_money": 9,
+            "cost_coal": 0,
+            "cost_iron": 1,
+            "cost_beer_to_sell": 0,
+            "yield_canal": 5,
+            "yield_rail": 5,
+            "is_developable": true,
+            "eras": [
+                "canal",
+                "rail"
+            ]
+        },
+        {
+            "level": 4,
+            "count": 1,
+            "income": 1,
+            "vp": 9,
+            "link_vp": 1,
+            "cost_money": 12,
+            "cost_coal": 0,
+            "cost_iron": 1,
+            "cost_beer_to_sell": 0,
+            "yield_canal": 6,
+            "yield_rail": 6,
+            "is_developable": true,
+            "eras": [
+                "canal",
+                "rail"
+            ]
+        }
+    ],
+    "brewery": [
+        {
+            "level": 1,
+            "count": 2,
+            "income": 4,
+            "vp": 4,
+            "link_vp": 2,
+            "cost_money": 5,
+            "cost_coal": 1,
+            "cost_iron": 0,
+            "cost_beer_to_sell": 0,
+            "yield_canal": 1,
+            "yield_rail": 0,
+            "is_developable": true,
+            "eras": [
+                "canal"
+            ]
+        },
+        {
+            "level": 2,
+            "count": 2,
+            "income": 5,
+            "vp": 5,
+            "link_vp": 2,
+            "cost_money": 7,
+            "cost_coal": 1,
+            "cost_iron": 0,
+            "cost_beer_to_sell": 0,
+            "yield_canal": 1,
+            "yield_rail": 2,
+            "is_developable": true,
+            "eras": [
+                "canal",
+                "rail"
+            ]
+        },
+        {
+            "level": 3,
+            "count": 3,
+            "income": 5,
+            "vp": 7,
+            "link_vp": 2,
+            "cost_money": 9,
+            "cost_coal": 1,
+            "cost_iron": 0,
+            "cost_beer_to_sell": 0,
+            "yield_canal": 1,
+            "yield_rail": 2,
+            "is_developable": true,
+            "eras": [
+                "canal",
+                "rail"
+            ]
+        },
+        {
+            "level": 4,
+            "count": 1,
+            "income": 5,
+            "vp": 10,
+            "link_vp": 2,
+            "cost_money": 9,
+            "cost_coal": 1,
+            "cost_iron": 0,
+            "cost_beer_to_sell": 0,
+            "yield_canal": 0,
+            "yield_rail": 2,
+            "is_developable": true,
+            "eras": [
+                "rail"
+            ]
+        }
+    ],
+    "coal": [
+        {
+            "level": 1,
+            "count": 1,
+            "income": 4,
+            "vp": 1,
+            "link_vp": 2,
+            "cost_money": 5,
+            "cost_coal": 0,
+            "cost_iron": 0,
+            "cost_beer_to_sell": 0,
+            "yield_canal": 2,
+            "yield_rail": 2,
+            "is_developable": true,
+            "eras": [
+                "canal"
+            ]
+        },
+        {
+            "level": 2,
+            "count": 2,
+            "income": 7,
+            "vp": 2,
+            "link_vp": 1,
+            "cost_money": 7,
+            "cost_coal": 0,
+            "cost_iron": 0,
+            "cost_beer_to_sell": 0,
+            "yield_canal": 3,
+            "yield_rail": 3,
+            "is_developable": true,
+            "eras": [
+                "canal",
+                "rail"
+            ]
+        },
+        {
+            "level": 3,
+            "count": 2,
+            "income": 6,
+            "vp": 3,
+            "link_vp": 1,
+            "cost_money": 8,
+            "cost_coal": 1,
+            "cost_iron": 0,
+            "cost_beer_to_sell": 0,
+            "yield_canal": 4,
+            "yield_rail": 4,
+            "is_developable": true,
+            "eras": [
+                "canal",
+                "rail"
+            ]
+        },
+        {
+            "level": 4,
+            "count": 2,
+            "income": 5,
+            "vp": 4,
+            "link_vp": 1,
+            "cost_money": 10,
+            "cost_coal": 1,
+            "cost_iron": 0,
+            "cost_beer_to_sell": 0,
+            "yield_canal": 5,
+            "yield_rail": 5,
+            "is_developable": true,
+            "eras": [
+                "canal",
+                "rail"
+            ]
+        }
+    ],
+    "pottery": [
+        {
+            "level": 1,
+            "count": 1,
+            "income": 5,
+            "vp": 10,
+            "link_vp": 1,
+            "cost_money": 17,
+            "cost_coal": 0,
+            "cost_iron": 1,
+            "cost_beer_to_sell": 1,
+            "yield_canal": 0,
+            "yield_rail": 0,
+            "is_developable": false,
+            "eras": [
+                "canal",
+                "rail"
+            ]
+        },
+        {
+            "level": 2,
+            "count": 1,
+            "income": 1,
+            "vp": 1,
+            "link_vp": 1,
+            "cost_money": 0,
+            "cost_coal": 1,
+            "cost_iron": 0,
+            "cost_beer_to_sell": 1,
+            "yield_canal": 0,
+            "yield_rail": 0,
+            "is_developable": true,
+            "eras": [
+                "canal",
+                "rail"
+            ]
+        },
+        {
+            "level": 3,
+            "count": 1,
+            "income": 5,
+            "vp": 11,
+            "link_vp": 1,
+            "cost_money": 22,
+            "cost_coal": 0,
+            "cost_iron": 2,
+            "cost_beer_to_sell": 2,
+            "yield_canal": 0,
+            "yield_rail": 0,
+            "is_developable": false,
+            "eras": [
+                "canal",
+                "rail"
+            ]
+        },
+        {
+            "level": 4,
+            "count": 1,
+            "income": 1,
+            "vp": 1,
+            "link_vp": 1,
+            "cost_money": 0,
+            "cost_coal": 0,
+            "cost_iron": 1,
+            "cost_beer_to_sell": 1,
+            "yield_canal": 0,
+            "yield_rail": 0,
+            "is_developable": true,
+            "eras": [
+                "canal",
+                "rail"
+            ]
+        },
+        {
+            "level": 5,
+            "count": 1,
+            "income": 5,
+            "vp": 20,
+            "link_vp": 1,
+            "cost_money": 24,
+            "cost_coal": 0,
+            "cost_iron": 2,
+            "cost_beer_to_sell": 2,
+            "yield_canal": 0,
+            "yield_rail": 0,
+            "is_developable": true,
+            "eras": [
+                "rail"
+            ]
+        }
+    ],
+    "goods": [
+        {
+            "level": 1,
+            "count": 1,
+            "income": 1,
+            "vp": 5,
+            "link_vp": 1,
+            "cost_money": 8,
+            "cost_coal": 0,
+            "cost_iron": 1,
+            "cost_beer_to_sell": 1,
+            "yield_canal": 0,
+            "yield_rail": 0,
+            "is_developable": true,
+            "eras": [
+                "canal"
+            ]
+        },
+        {
+            "level": 2,
+            "count": 2,
+            "income": 1,
+            "vp": 5,
+            "link_vp": 1,
+            "cost_money": 10,
+            "cost_coal": 1,
+            "cost_iron": 0,
+            "cost_beer_to_sell": 1,
+            "yield_canal": 0,
+            "yield_rail": 0,
+            "is_developable": true,
+            "eras": [
+                "canal",
+                "rail"
+            ]
+        },
+        {
+            "level": 3,
+            "count": 1,
+            "income": 4,
+            "vp": 4,
+            "link_vp": 0,
+            "cost_money": 12,
+            "cost_coal": 0,
+            "cost_iron": 2,
+            "cost_beer_to_sell": 0,
+            "yield_canal": 0,
+            "yield_rail": 0,
+            "is_developable": true,
+            "eras": [
+                "canal",
+                "rail"
+            ]
+        },
+        {
+            "level": 4,
+            "count": 1,
+            "income": 6,
+            "vp": 3,
+            "link_vp": 1,
+            "cost_money": 8,
+            "cost_coal": 1,
+            "cost_iron": 0,
+            "cost_beer_to_sell": 1,
+            "yield_canal": 0,
+            "yield_rail": 0,
+            "is_developable": true,
+            "eras": [
+                "canal",
+                "rail"
+            ]
+        },
+        {
+            "level": 5,
+            "count": 2,
+            "income": 2,
+            "vp": 8,
+            "link_vp": 2,
+            "cost_money": 16,
+            "cost_coal": 0,
+            "cost_iron": 1,
+            "cost_beer_to_sell": 2,
+            "yield_canal": 0,
+            "yield_rail": 0,
+            "is_developable": true,
+            "eras": [
+                "canal",
+                "rail"
+            ]
+        },
+        {
+            "level": 6,
+            "count": 1,
+            "income": 6,
+            "vp": 7,
+            "link_vp": 1,
+            "cost_money": 20,
+            "cost_coal": 0,
+            "cost_iron": 0,
+            "cost_beer_to_sell": 1,
+            "yield_canal": 0,
+            "yield_rail": 0,
+            "is_developable": true,
+            "eras": [
+                "canal",
+                "rail"
+            ]
+        },
+        {
+            "level": 7,
+            "count": 1,
+            "income": 4,
+            "vp": 9,
+            "link_vp": 0,
+            "cost_money": 16,
+            "cost_coal": 1,
+            "cost_iron": 1,
+            "cost_beer_to_sell": 0,
+            "yield_canal": 0,
+            "yield_rail": 0,
+            "is_developable": true,
+            "eras": [
+                "canal",
+                "rail"
+            ]
+        },
+        {
+            "level": 8,
+            "count": 2,
+            "income": 1,
+            "vp": 11,
+            "link_vp": 1,
+            "cost_money": 20,
+            "cost_coal": 2,
+            "cost_iron": 0,
+            "cost_beer_to_sell": 1,
+            "yield_canal": 0,
+            "yield_rail": 0,
+            "is_developable": true,
+            "eras": [
+                "canal",
+                "rail"
+            ]
+        }
+    ]
+}
