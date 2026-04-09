@@ -126,7 +126,12 @@ class BrassEnv(gym.Env):
 
         obs = _decode_obs(resp["obs_b64"])
         self._mask = _decode_mask(resp["mask_b64"], self._action_size)
+        
         info = {"state": resp.get("state")} if include_state else {}
+        # v2.5: Persist terminal stats so auto-resetting VecEnvs (SB3) can see them
+        if hasattr(self, "last_info"):
+            info["terminal_info"] = self.last_info
+            
         return obs, info
 
     def step(self, action: int, include_state: bool = False) -> tuple[np.ndarray, float, bool, bool, dict]:
@@ -155,8 +160,10 @@ class BrassEnv(gym.Env):
             "consumed_opponent_coal": resp.get("consumed_opponent_coal", []),
             "consumed_opponent_iron": resp.get("consumed_opponent_iron", []),
             "step_metadata": resp.get("metadata", {}),
-            "state": resp.get("state") # Full state snapshot if requested
+            "state": resp.get("state"), # Full state snapshot if requested
+            "winner": int(np.argmax(resp.get("vps", [0,0]))) if terminated else -1
         }
+        self.last_info = info.copy() # Store for reset persistence
         return obs, float(resp["reward"]), terminated, truncated, info
 
     def action_masks(self) -> np.ndarray:

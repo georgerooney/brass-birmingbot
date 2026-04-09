@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parent.parent
 def run_eval(model_path: str, num_episodes: int = 20, output_dir_path: str = "eval_data", render_sample: bool = True, deterministic: bool = True, trace_limit: int = 20):
     print(f"Loading model: {model_path}")
     env = BrassEnv(num_players=2)
-    model = MaskablePPO.load(model_path, env=env)
+    model = MaskablePPO.load(model_path, env=env, device="cuda")
     
     action_names = env.get_action_names()
     

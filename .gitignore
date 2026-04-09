@@ -17,6 +17,8 @@
 **/eval_data/
 **/eval_data_latest/
 **/eval_data_expert_analysis/
+**/diagnostic_eval/
+**/scratch/
 
 # UI / Node
 **/node_modules/

@@ -58,7 +58,7 @@ def make_env_fn(rank: int, num_players: int):
 
 class BrassExpertExtractor(BaseFeaturesExtractor):
     """Separates the flat observation into Board and Hand components."""
-    def __init__(self, observation_space, features_dim: int = 1024):
+    def __init__(self, observation_space, features_dim: int = 384):
         super().__init__(observation_space, features_dim)
         # Slices (must match engine/observation.go)
         self.board_size = 2204
@@ -67,19 +67,21 @@ class BrassExpertExtractor(BaseFeaturesExtractor):
         
         # Board Encoder: Condenses the huge board state into a strategic embedding
         self.board_encoder = nn.Sequential(
-            nn.Linear(self.board_size, 1024),
+            nn.Linear(self.board_size, 512),
             nn.LeakyReLU(),
-            nn.Linear(1024, 512),
+            nn.Linear(512, 256),
             nn.LeakyReLU(),
-            nn.Linear(512, 512), # Strategic Board latent (Fixed 512)
+            nn.Linear(256, 256), # Strategic Board latent (Fixed 256)
             nn.LeakyReLU(),
         )
         
         # Card Encoder: Processes each hand slot through shared weights
         self.card_encoder = nn.Sequential(
-            nn.Linear(self.card_width, 128),
+            nn.Linear(self.card_width, 64),
             nn.LeakyReLU(),
-            nn.Linear(128, 64),
+            nn.Linear(64, 32),
+            nn.LeakyReLU(),
+            nn.Linear(32, 16),
         )
 
     def forward(self, observations: th.Tensor) -> th.Tensor:
@@ -94,42 +96,49 @@ class BrassExpertExtractor(BaseFeaturesExtractor):
         # Process all (Batch * HandSize) cards through the same weights
         hand_flat = hand_obs.reshape(-1, self.card_width)
         card_profiles = self.card_encoder(hand_flat)
-        card_profiles = card_profiles.reshape(-1, self.hand_size, 64)
+        card_profiles = card_profiles.reshape(-1, self.hand_size, 16)
         
         # Combine into a composite latent for the Value Function and Base Policy
         # Flat hand for the shared part of the model
-        hand_latent = card_profiles.reshape(-1, self.hand_size * 64)
-        return th.cat([board_latent, hand_latent], dim=1) # Total 512 + 512 = 1024
+        hand_latent = card_profiles.reshape(-1, self.hand_size * 16)
+        return th.cat([board_latent, hand_latent], dim=1) # Total 256 + 128 = 384
 
 class BrassExpertPolicy(MaskableActorCriticPolicy):
     """Custom policy head implementing the dot-product compatibility matrix."""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.embed_dim = 64
+        self.embed_dim = 16
         self.num_actions = 1500
         self.num_slots = 8
         
-        # Action Profile Generator: Maps board context to 1000 action "needs"
-        # We tie this to the board latent dimension (512)
+        # Action Profile Generator: Maps board context to action "needs"
+        # We tie this to the board latent dimension (256)
         self.action_generator = nn.Sequential(
-            nn.Linear(512, 1024),
+            nn.Linear(256, 512),
             nn.LeakyReLU(),
-            nn.Linear(1024, self.num_actions * self.embed_dim),
+            nn.Linear(512, self.num_actions * self.embed_dim),
         )
+
+        # Force near-uniform start
+        for m in self.action_generator:
+            if isinstance(m, nn.Linear):
+                nn.init.orthogonal_(m.weight, gain=0.01)
+                nn.init.constant_(m.bias, 0)
 
     def _get_action_logits(self, features: th.Tensor) -> th.Tensor:
         # 1. Unpack Board and Hand latents
-        # Board latent was 512, Hand was 8*64
-        board_latent = features[:, :512]
-        card_profiles = features[:, 512:].reshape(-1, self.num_slots, self.embed_dim)
+        # Board latent was 256, Hand was 8*16
+        board_latent = features[:, :256]
+        card_profiles = features[:, 256:].reshape(-1, self.num_slots, self.embed_dim)
         
         # 2. Generate Action Profiles from board context
         action_profiles = self.action_generator(board_latent)
         action_profiles = action_profiles.reshape(-1, self.num_actions, self.embed_dim)
         
         # 3. Compute Compatibility Matrix
-        # [Batch, 1000, 64] bmm [Batch, 64, 8] -> [Batch, 1000, 8]
-        logits = th.bmm(action_profiles, card_profiles.transpose(1, 2))
+        # [Batch, 1500, 64] bmm [Batch, 64, 8] -> [Batch, 1500, 8]
+        # Scaled dot-product (v2.6 Balanced Heat: / 5.0)
+        logits = th.bmm(action_profiles, card_profiles.transpose(1, 2)) / 5.0
         
         # 4. Flatten to 8000 Discrete Action space
         # Order: actionID + (slotIdx * 1000)
@@ -173,15 +182,16 @@ class PositionWinRateCallback(BaseCallback):
     def _on_step(self) -> bool:
         for info in self.locals.get("infos", []):
             if "episode" in info and "winner" in info:
-                # winner: 0 = P1, 1 = P2, ...
-                p1_win = 1 if info["winner"] == 0 else 0
+                # v2.5: check persistent terminal info for auto-resetting VecEnvs
+                t_info = info.get("terminal_info", info)
+                p1_win = 1 if t_info.get("winner") == 0 else 0
                 self.p1_wins.append(p1_win)
                 
                 # Record immediately to ensure it shows up in the SB3 table
                 self.logger.record("rollout/p1_win_rate", np.mean(self.p1_wins))
                 
-                if "vps" in info:
-                    print(f"DEBUG: Game Finished. VPs: {info['vps']}. P1 Win: {p1_win}")
+                if "vps" in t_info:
+                    print(f"DEBUG: Game Finished. VPs: {t_info['vps']}. P1 Win: {p1_win}")
         
         return True
 
@@ -206,8 +216,10 @@ class CurriculumCallback(BaseCallback):
 
         # Track episode ends for VP rolling average
         for info in self.locals.get("infos", []):
-            if "episode" in info and "vps" in info:
-                self.vp_history.append(np.mean(info["vps"]))
+            if "episode" in info:
+                t_info = info.get("terminal_info", info)
+                if "vps" in t_info:
+                    self.vp_history.append(np.mean(t_info["vps"]))
 
         if not self.state.is_decaying:
             if len(self.vp_history) >= self.vp_history.maxlen:
@@ -253,9 +265,9 @@ class DynamicLRScheduler:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Train Brass Birmingham PPO agent")
-    parser.add_argument("--envs",    type=int,   default=4,       help="Parallel envs")
+    parser.add_argument("--envs",    type=int,   default=32,      help="Parallel envs")
     parser.add_argument("--steps",   type=int,   default=10_000_000, help="Total timesteps")
-    parser.add_argument("--lr",      type=float, default=5e-4,    help="Learning rate")
+    parser.add_argument("--lr", type=float, default=0.0005, help="Learning rate (default: 5e-4)")
     parser.add_argument("--players", type=int,   default=2,       help="Players per game")
     parser.add_argument("--load",    type=str,   default=None,    help="Path to existing .zip model to resume from")
     parser.add_argument("--run-name", type=str,  default=None,    help="Custom name for this run")
@@ -281,11 +293,12 @@ def main() -> None:
         vec_env = SubprocVecEnv(env_fns)
         vec_env = VecMonitor(vec_env)
 
-        # Network architecture:
+        # Network configuration
+        features_dim = 384 # 256 (board) + 128 (hand)
         policy_kwargs = dict(
             features_extractor_class=BrassExpertExtractor,
-            features_extractor_kwargs=dict(features_dim=1024),
-            net_arch=dict(pi=[], vf=[1024, 512]), # PI is empty because our Head handles it
+            features_extractor_kwargs=dict(features_dim=features_dim),
+            net_arch=dict(pi=[], vf=[256]), # PI must be identity for the Expert Head
         )
 
         n_steps = 512  # rollout length (total batch = n_steps × n_envs)
@@ -313,15 +326,17 @@ def main() -> None:
                 BrassExpertPolicy,
                 vec_env,
                 n_steps=n_steps,
-                batch_size=512,        # minibatch size for gradient update (increased for speed)
-                n_epochs=4,            # PPO epochs per rollout
-                gamma=0.99,            # discount
-                gae_lambda=0.95,
+                batch_size=4096,       # Increased from 1024 for stable gradients
+                n_epochs=10,           # Increased from 4 for better sample efficiency
+                gamma=0.997,           # Increased from 0.99 for far-sightedness
+                gae_lambda=0.98,       # Increased from 0.95 for variance reduction
                 clip_range=0.2,
-                ent_coef=0.01,         # entropy bonus
+                target_kl=0.015,       # Safety rail for higher update frequency
+                ent_coef=0.01,         # Increased from 0.005 to encourage exploration with sharper logits
                 learning_rate=lr_schedule,
                 policy_kwargs=policy_kwargs,
                 verbose=1,
+                device="cuda",
                 tensorboard_log=str(tensorboard_dir),
             )
 
