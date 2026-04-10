@@ -15,9 +15,10 @@ import os
 import subprocess
 import sys
 import time
-from collections import deque
+from collections import deque, defaultdict
 from datetime import datetime
 from pathlib import Path
+import multiprocessing
 
 import numpy as np
 import torch as th
@@ -65,11 +66,11 @@ class BrassExpertExtractor(BaseFeaturesExtractor):
             f"Observation size {observation_space.shape[0]} is smaller than board_size {self.board_size}"
         )
         
-        # Board Encoder: Legacy 1024-dimensional capacity
+        # Board Encoder: Reduced capacity for faster training
         self.board_encoder = nn.Sequential(
-            nn.Linear(self.board_size, 1024),
+            nn.Linear(self.board_size, 512),
             nn.ReLU(),
-            nn.Linear(1024, features_dim),
+            nn.Linear(512, features_dim),
             nn.ReLU(),
         )
 
@@ -86,8 +87,8 @@ class BrassExpertPolicy(MaskableActorCriticPolicy):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Re-allocate the action_net to match our new 886 strategic action space
-        self.action_net = nn.Linear(self.mlp_extractor.latent_dim_pi, 886)
+        # Re-allocate the action_net to match the actual action space size
+        self.action_net = nn.Linear(self.mlp_extractor.latent_dim_pi, self.action_space.n)
         
         # Orthogonal init for stable start
         nn.init.orthogonal_(self.action_net.weight, gain=0.01)
@@ -128,13 +129,10 @@ class PositionWinRateCallback(BaseCallback):
 
     def _on_step(self) -> bool:
         for info in self.locals.get("infos", []):
-            if "episode" in info and "winner" in info:
-                # v2.5: check persistent terminal info for auto-resetting VecEnvs
+            if "winner" in info:
                 t_info = info.get("terminal_info", info)
                 p1_win = 1 if t_info.get("winner") == 0 else 0
                 self.p1_wins.append(p1_win)
-                
-                # Record immediately to ensure it shows up in the SB3 table
                 self.logger.record("rollout/p1_win_rate", np.mean(self.p1_wins))
                 
                 # Check terminal_observation from VecMonitor if present
@@ -169,7 +167,7 @@ class CurriculumCallback(BaseCallback):
 
         # Track episode ends for VP rolling average
         for info in self.locals.get("infos", []):
-            if "episode" in info:
+            if "winner" in info:
                 t_info = info.get("terminal_info", info)
                 if "vps" in t_info:
                     self.vp_history.append(np.mean(t_info["vps"]))
@@ -214,9 +212,120 @@ class DynamicLRScheduler:
         decay_progress = max(0, 1.0 - (elapsed / self.state.decay_steps))
         return self.initial_lr * decay_progress
 
+def run_diagnostics(model_path: str, num_episodes: int, log_file: str, train_steps: int):
+    from sb3_contrib import MaskablePPO
+    from brass_env.env import BrassEnv
+    from collections import defaultdict
+    import os
+    
+    try:
+        env = BrassEnv(num_players=2)
+        model = MaskablePPO.load(model_path)
+        
+        move_types = defaultdict(int)
+        specific_moves = defaultdict(int)
+        
+        action_names = env.get_action_names()
+        
+        total_steps = 0
+        valid_link_count = 0
+        total_valid_link_prob = 0.0
+        steps_with_links = 0
+        
+        for _ in range(num_episodes):
+            obs, info = env.reset()
+            done = False
+            while not done:
+                masks = env.action_masks()
+                valid_actions = [i for i, m in enumerate(masks) if m]
+                for a in valid_actions:
+                    if action_names[a].startswith("Build Link"):
+                        valid_link_count += 1
+                
+                # Extract probabilities for links
+                obs_tensor = th.tensor(obs, dtype=th.float32).unsqueeze(0).to(model.device)
+                with th.no_grad():
+                    distribution = model.policy.get_distribution(obs_tensor)
+                    probs = distribution.distribution.probs.detach().cpu().numpy()[0]
+                
+                link_indices = [i for i, name in enumerate(action_names) if name.startswith("Build Link")]
+                valid_link_indices = [i for i in link_indices if masks[i]]
+                
+                if len(valid_link_indices) > 0:
+                    total_valid_link_prob += np.sum(probs[valid_link_indices])
+                    steps_with_links += 1
+                
+                # Manually sample based on policy to guarantee mask application
+                masked_probs = probs * masks
+                if np.sum(masked_probs) > 0:
+                    masked_probs = masked_probs / np.sum(masked_probs)
+                    action = np.random.choice(len(masked_probs), p=masked_probs)
+                else:
+                    action, _ = model.predict(obs, action_masks=masks, deterministic=False)
+                
+                action_name = action_names[action]
+                specific_moves[action_name] += 1
+                
+                move_type = action_name.split()[0]
+                move_types[move_type] += 1
+                
+                obs, reward, terminated, truncated, info = env.step(action)
+                done = terminated or truncated
+                total_steps += 1
+                
+        sorted_types = sorted(move_types.items(), key=lambda x: x[1], reverse=True)
+        sorted_specific = sorted(specific_moves.items(), key=lambda x: x[1], reverse=True)[:10]
+        
+        with open(log_file, "a") as f:
+            f.write(f"\n--- Diagnostics at training step {train_steps} ---\n")
+            f.write(f"Total moves in {num_episodes} games: {total_steps}\n")
+            f.write(f"Average valid links available per step: {valid_link_count/total_steps:.2f}\n")
+            avg_link_prob = total_valid_link_prob / steps_with_links if steps_with_links > 0 else 0.0
+            f.write(f"Average policy prob of valid links: {avg_link_prob:.4f}\n")
+            f.write("Most common move types:\n")
+            for t, c in sorted_types:
+                f.write(f"  {t}: {c} ({c/total_steps:.2%})\n")
+            f.write("Top 10 specific moves:\n")
+            for m, c in sorted_specific:
+                f.write(f"  {m}: {c} ({c/total_steps:.2%})\n")
+            f.write("-" * 40 + "\n")
+            
+        # Clean up temp model file
+        os.remove(model_path)
+            
+    except Exception as e:
+        with open(log_file, "a") as f:
+            f.write(f"Error in diagnostics at step {train_steps}: {str(e)}\n")
+
+class DiagnosticCallback(BaseCallback):
+    def __init__(self, save_freq: int, num_episodes: int, log_file: str, verbose: int = 0):
+        super().__init__(verbose)
+        self.save_freq = save_freq
+        self.num_episodes = num_episodes
+        self.log_file = log_file
+        
+    def _on_step(self) -> bool:
+        if self.n_calls % self.save_freq == 0:
+            run_dir = os.path.dirname(self.log_file)
+            temp_path = os.path.join(run_dir, f"temp_diag_model_{self.num_timesteps}.zip")
+            self.model.save(temp_path)
+            
+            p = multiprocessing.Process(
+                target=run_diagnostics, 
+                args=(temp_path, self.num_episodes, self.log_file, self.num_timesteps)
+            )
+            p.start()
+            
+        return True
+
 # --- Main Logic ---
 
 def main() -> None:
+    try:
+        multiprocessing.set_start_method('spawn')
+    except RuntimeError:
+        pass # Already set
+        
     parser = argparse.ArgumentParser(description="Train Brass Birmingham PPO agent")
     parser.add_argument("--envs",    type=int,   default=32,      help="Parallel envs")
     parser.add_argument("--steps",   type=int,   default=10_000_000, help="Total timesteps")
@@ -248,12 +357,12 @@ def main() -> None:
         board_size = vec_env.get_attr('board_size')[0]
         print(f"Queried board size: {board_size}")
 
-        # Simplified Network configuration (Legacy 1024)
-        features_dim = 512
+        # Simplified Network configuration (Reduced for faster learning)
+        features_dim = 256
         policy_kwargs = dict(
             features_extractor_class=BrassExpertExtractor,
             features_extractor_kwargs=dict(features_dim=features_dim, board_size=board_size),
-            net_arch=dict(pi=[], vf=[512, 256]), 
+            net_arch=dict(pi=[256, 256], vf=[256, 128]), 
         )
 
         n_steps = 256  # rollout length (total batch = n_steps × n_envs)
@@ -284,10 +393,10 @@ def main() -> None:
                 batch_size=256,        # Tighter batch for faster convergence
                 n_epochs=10,           
                 gamma=0.99,            # Strategic focus (reverted from 0.997)
-                gae_lambda=0.98,       
+                gae_lambda=0.95,       
                 clip_range=0.2,
                 target_kl=0.015,       
-                ent_coef=0.01,         # Tighter entropy for smaller space
+                ent_coef=0.03,         # Increased entropy for exploration
                 learning_rate=lr_schedule,
                 policy_kwargs=policy_kwargs,
                 verbose=1,
@@ -302,19 +411,25 @@ def main() -> None:
         print(f"  run_dir={run_dir}")
         print()
 
-        # Save a checkpoint every 50k steps
+        # Save a checkpoint every 250k steps
         checkpoint_callback = CheckpointCallback(
-            save_freq=max(50_000 // args.envs, 1),
+            save_freq=max(250_000 // args.envs, 1),
             save_path=str(checkpoint_dir),
             name_prefix="brass_ppo",
             save_replay_buffer=False,
             save_vecnormalize=True,
         )
 
+        diagnostic_callback = DiagnosticCallback(
+            save_freq=max(250_000 // args.envs, 1),
+            num_episodes=25,
+            log_file=str(run_dir / "diagnostics.log")
+        )
+
         model.learn(
             total_timesteps=args.steps,
             progress_bar=False,
-            callback=[checkpoint_callback, win_rate_callback, curriculum_callback],
+            callback=[checkpoint_callback, win_rate_callback, curriculum_callback, diagnostic_callback],
             reset_num_timesteps=False if args.load else True,
         )
 

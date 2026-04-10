@@ -155,7 +155,7 @@ func BuildActionRegistry(board *MapGraph) {
 }
 
 func GetActionSpaceSize() int {
-	return 886
+	return len(ActionRegistry)
 }
 
 func (a Action) Name(board *MapGraph) string {

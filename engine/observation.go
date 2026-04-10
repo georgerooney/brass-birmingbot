@@ -231,7 +231,22 @@ func FillObservation(gs *GameState, buf []float32) {
 		}
 	}
 	off = ObsMerchEnd
+	for i := 0; i < len(gs.Board.Routes) && i < ObsMaxRoutes; i++ {
+		r := gs.Board.Routes[i]
+		base := ObsMerchEnd + i*ObsRouteWidth
 
+		if r.IsBuilt {
+			buf[base+0] = 1 // built
+			// Owner one-hot (mapped to relative PID)
+			relOwner := (int(r.Owner) - int(gs.Active) + gs.NumPlayers) % gs.NumPlayers
+			if relOwner < ObsMaxPlayers {
+				buf[base+1+relOwner] = 1
+			}
+		}
+		if r.IsSubRoute {
+			buf[base+5] = 1 // is sub-route
+		}
+	}
 	off = ObsRouteEnd
 
 	// ── Cities ────────────────────────────────────────────────────────────────

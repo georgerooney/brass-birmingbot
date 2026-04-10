@@ -39,7 +39,7 @@ func (env *Env) GetActionMask() []bool {
 	// Only allow Pass if no other move is valid
 	// In Registry, ActionPass is usually one of the last indices (handled by RegisterConstants)
 	// We'll iterate and find it.
-	allowPass := (nonPassLegalCount == 0)
+	allowPass := true
 	for i, action := range ActionRegistry {
 		if action.Type == ActionPass {
 			env.cachedMask[i] = allowPass
@@ -130,6 +130,11 @@ func (env *Env) isValidActionWithCard(p *PlayerState, action Action, cardIdx int
 			return false
 		}
 
+		// Link cannot be the first action in the game! Must have an industry first.
+		if env.State.IsFirstBuild(p.ID) {
+			return false
+		}
+
 		// 1. Adjacency Check
 		if !env.State.IsAdjacentToNetwork(action.RouteID, p.ID) {
 			return false
@@ -167,6 +172,11 @@ func (env *Env) isValidActionWithCard(p *PlayerState, action Action, cardIdx int
 		// Fast-path chain: each guard is cheaper than the last.
 		// The full ~2080-entry registry is handled efficiently because nearly all
 		// entries are eliminated here before any BFS fires.
+
+		// Link cannot be the first action in the game! Must have an industry first.
+		if env.State.IsFirstBuild(p.ID) {
+			return false
+		}
 
 		// O(1): Canal Era has no double-rail at all
 		if env.State.Epoch != RailEra {

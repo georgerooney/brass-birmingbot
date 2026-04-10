@@ -111,6 +111,7 @@ class BrassEnv(gym.Env):
         
         # Create Go environment
         self._env_id = self.lib.BrassNewEnv(num_players)
+        self.step_count = 0
         
     def reset(
         self,
@@ -122,6 +123,7 @@ class BrassEnv(gym.Env):
         super().reset(seed=seed)
         
         self.lib.BrassReset(self._env_id)
+        self.step_count = 0
         
         # Fetch observation and mask
         self.lib.BrassGetObs(self._env_id, self._obs_buf.ctypes.data_as(ctypes.POINTER(ctypes.c_float)))
@@ -147,13 +149,14 @@ class BrassEnv(gym.Env):
             ctypes.byref(reward),
             ctypes.byref(done),
         )
+        self.step_count += 1
         
         # Fetch observation and mask
         self.lib.BrassGetObs(self._env_id, self._obs_buf.ctypes.data_as(ctypes.POINTER(ctypes.c_float)))
         self.lib.BrassGetMask(self._env_id, self._mask_buf.ctypes.data_as(ctypes.POINTER(ctypes.c_int32)))
         
         terminated = bool(done.value)
-        truncated = False
+        truncated = self.step_count > 200
         
         info = {}
         
@@ -163,7 +166,7 @@ class BrassEnv(gym.Env):
             if state_json:
                 self._fill_diagnostic_info(info, state_json)
                 
-        if terminated:
+        if terminated or truncated:
             if "vps" not in info:
                 vps = [self.lib.BrassPlayerVP(self._env_id, i) for i in range(self.num_players)]
                 info["vps"] = vps

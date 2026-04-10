@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"fmt"
 	"math/rand"
 	"sort"
 	"sync/atomic"
@@ -87,7 +88,12 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 
 	cardSlotIdx := e.ChooseBestCardForAction(player, action)
 	if cardSlotIdx == -1 {
-		return 0.0, false // Invalid action-card pairing (should be masked)
+		if action.Type == ActionPass && len(player.Hand) == 0 {
+			// Allow Pass with empty hand
+		} else {
+			fmt.Println("DEBUG: Invalid action-card pairing in Step! Action:", action.Type, "ActionIdx:", baseActionID)
+			return 0.0, false // Invalid action-card pairing (should be masked)
+		}
 	}
 
 	// Capture player state at beginning for reward (will use delta since last turn)
@@ -128,8 +134,8 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 		player.IncomeLevel = newLevel
 		player.SyncIncome()
 
-		// Reward: None (Noise removed for High-Contrast signal)
-		reward += 0.0 * denseRewardScale
+		// Reward: Small positive reward for action
+		reward += 0.05 * denseRewardScale
 
 		// Heuristic: Discard least flexible cards for loan (Industry > Location > Wild)
 		// Spend chosen card
@@ -141,26 +147,30 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 			
 			// v2.4 Clarity: Small penalty for burning a LocationCard for a Loan
 			if card.Type == LocationCard {
-				reward -= 0.02 * denseRewardScale
+				reward -= 0.01 * denseRewardScale
 			}
 		}
 
 	case ActionPass:
-		// Discard the chosen card
-		actualCardIdx, ok := e.GetActualHandIndex(cardSlotIdx)
 		player := e.State.Players[e.State.Active]
-		if ok {
-			card := player.Hand[actualCardIdx]
-			e.LastMetadata.CardsSpent = []Card{card}
-			e.State.ReturnCard(e.State.Active, actualCardIdx)
-			
-			// v2.4 Clarity: Small penalty for burning a LocationCard for a Pass
-			if card.Type == LocationCard {
-				reward -= 0.02 * denseRewardScale
+		if cardSlotIdx != -1 {
+			actualCardIdx, ok := e.GetActualHandIndex(cardSlotIdx)
+			if ok {
+				card := player.Hand[actualCardIdx]
+				e.LastMetadata.CardsSpent = []Card{card}
+				e.State.ReturnCard(e.State.Active, actualCardIdx)
+				
+				// v2.4 Clarity: Small penalty for burning a LocationCard for a Pass
+				if card.Type == LocationCard {
+					reward -= 0.01 * denseRewardScale
+				}
 			}
+		} else if len(player.Hand) == 0 {
+			// Allowed to pass with empty hand, no card spent
+			e.LastMetadata.CardsSpent = []Card{}
 		}
 		
-		reward -= 0.20 * denseRewardScale
+		reward -= 0.1 * denseRewardScale
 
 	case ActionScout:
 		// Discard 3
@@ -171,7 +181,7 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 		player.Hand = append(player.Hand, Card{Type: WildLocationCard})
 		player.Hand = append(player.Hand, Card{Type: WildIndustryCard})
 		
-		reward += 0.0 * denseRewardScale
+		reward += 0.025 * denseRewardScale
 
 	case ActionDevelop:
 		count := 1
@@ -193,7 +203,7 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 
 		// Discard chosen card
 		e.LastMetadata.CardsSpent, _ = e.GetCardAndBurn(cardSlotIdx)
-		reward += 0.0 * denseRewardScale
+		reward += 0.025 * denseRewardScale
 
 	case ActionBuildIndustry:
 		moneyBefore := player.Money
@@ -295,8 +305,8 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 			e.State.FlipIndustry(len(e.State.Industries) - 1)
 		}
 
-		// Reward: Removed for purification
-		reward += 0.0 * denseRewardScale
+		// Reward: Stronger positive reward for building to encourage exploration
+		reward += 0.15 * denseRewardScale
 		moneySpent := moneyBefore - player.Money
 		if moneySpent > 0 {
 			reward += (float64(moneySpent) * 0.0) * denseRewardScale
@@ -326,15 +336,16 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 		valA := e.State.GetLinkValueForCity(route.CityA)
 		valB := e.State.GetLinkValueForCity(route.CityB)
 		p.VPAuditLinks += (valA + valB)
-		reward += 0.0 * denseRewardScale
+		// Reward: Stronger positive reward for building links to encourage network building
+		reward += 0.15 * denseRewardScale
 
 		// Reward: Removed for purification
 		reward += 0.0 * denseRewardScale
 
-		// Reward: Removed for purification
+		// Reward: Positive reward for connecting to a merchant!
 		if (!wasConnectedA && e.State.IsMerchantConnected(route.CityA)) || 
 		   (!wasConnectedB && e.State.IsMerchantConnected(route.CityB)) {
-			reward += 0.0 * denseRewardScale
+			reward += 0.15 * denseRewardScale
 		}
 
 		// Reward: Removed for purification
@@ -375,8 +386,8 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 		p.VPAuditLinks += (e.State.GetLinkValueForCity(r1.CityA) + e.State.GetLinkValueForCity(r1.CityB))
 		p.VPAuditLinks += (e.State.GetLinkValueForCity(r2.CityA) + e.State.GetLinkValueForCity(r2.CityB))
 
-		// Reward: Removed for purification
-		reward += 0.0 * denseRewardScale 
+		// Reward: Stronger positive reward for building double links
+		reward += 0.10 * denseRewardScale
 
 
 
@@ -453,7 +464,7 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 		}
 
 		e.LastMetadata.CardsSpent, _ = e.GetCardAndBurn(cardSlotIdx)
-		reward += 0.0 * denseRewardScale
+		reward += 0.025 * denseRewardScale
 	}
 
 	// ── Turn sequence ─────────────────────────────────────────────────────────
@@ -527,7 +538,7 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
                (pAfter.VPAuditLinks - prevAuditLinks)
 	incomeDelta := pAfter.IncomeLevel - prevIncome
 
-	reward += (float64(vpDelta)*0.5 + float64(incomeDelta)*0.1) * denseRewardScale
+	reward += (float64(vpDelta)*0.05 + float64(incomeDelta)*0.01) * denseRewardScale
 
 	// Safety Clamp: Ensure total reward per step is in [-1.0, 1.0]
 	if reward > 1.0 {
@@ -543,66 +554,7 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 
 	done = e.State.GameOver
 	if done {
-		// Terminal reward: Rank-based discrete payouts with tie-breaking.
-		// Tie-break: VP > Income > Money > Draw.
-		type pScore struct {
-			id PlayerId
-			vp int
-			inc int
-			money int
-		}
-		var scores []pScore
-		for i := 0; i < e.State.NumPlayers; i++ {
-			p := e.State.Players[i]
-			scores = append(scores, pScore{PlayerId(i), p.VP, p.IncomeLevel, p.Money})
-		}
-
-		sort.Slice(scores, func(i, j int) bool {
-			if scores[i].vp != scores[j].vp { return scores[i].vp > scores[j].vp }
-			if scores[i].inc != scores[j].inc { return scores[i].inc > scores[j].inc }
-			return scores[i].money > scores[j].money
-		})
-
-		// Standard rank payouts
-		getRawPayout := func(rank int, total int) float64 {
-			switch total {
-			case 2:
-				if rank == 0 { return 1.0 } else { return -1.0 }
-			case 3:
-				if rank == 0 { return 1.0 } else if rank == 1 { return 0.0 } else { return -1.0 }
-			case 4:
-				if rank == 0 { return 1.0 } else if rank == 1 { return 0.33 } else if rank == 2 { return -0.33 } else { return -1.0 }
-			default:
-				return 0
-			}
-		}
-
-		// Group tied players and average their payouts
-		var rankResults = make(map[PlayerId]float64)
-		i := 0
-		for i < e.State.NumPlayers {
-			j := i + 1
-			for j < e.State.NumPlayers && 
-				scores[j].vp == scores[i].vp && 
-				scores[j].inc == scores[i].inc && 
-				scores[j].money == scores[i].money {
-				j++
-			}
-			
-			// Group [i, j-1] inclusive are tied
-			sumPayout := 0.0
-			for k := i; k < j; k++ {
-				sumPayout += getRawPayout(k, e.State.NumPlayers)
-			}
-			avgPayout := sumPayout / float64(j - i)
-			
-			for k := i; k < j; k++ {
-				rankResults[scores[k].id] = avgPayout
-			}
-			i = j
-		}
-		
-		reward += rankResults[active]
+		reward += e.ComputeTerminalReward(active)
 	}
 
 
@@ -626,6 +578,73 @@ func (e *Env) BuildRoute(routeID int, owner PlayerId) {
 		e.State.Board.Routes[subID].IsBuilt = true
 		e.State.Board.Routes[subID].Owner = owner
 	}
+}
+
+func (e *Env) ComputeTerminalReward(active PlayerId) float64 {
+	type pScore struct {
+		id PlayerId
+		vp int
+		inc int
+		money int
+	}
+	var scores []pScore
+	for i := 0; i < e.State.NumPlayers; i++ {
+		p := e.State.Players[i]
+		scores = append(scores, pScore{PlayerId(i), p.VP, p.IncomeLevel, p.Money})
+	}
+
+	totalVP := 0
+	for _, s := range scores {
+		totalVP += s.vp
+	}
+	scoreScale := 0.1 + 0.9*float64(totalVP)/250.0
+	if scoreScale > 1.0 {
+		scoreScale = 1.0
+	}
+
+	sort.Slice(scores, func(i, j int) bool {
+		if scores[i].vp != scores[j].vp { return scores[i].vp > scores[j].vp }
+		if scores[i].inc != scores[j].inc { return scores[i].inc > scores[j].inc }
+		return scores[i].money > scores[j].money
+	})
+
+	getRawPayout := func(rank int, total int) float64 {
+		switch total {
+		case 2:
+			if rank == 0 { return 1.0 } else { return -1.0 }
+		case 3:
+			if rank == 0 { return 1.0 } else if rank == 1 { return 0.0 } else { return -1.0 }
+		case 4:
+			if rank == 0 { return 1.0 } else if rank == 1 { return 0.33 } else if rank == 2 { return -0.33 } else { return -1.0 }
+		default:
+			return 0
+		}
+	}
+
+	var rankResults = make(map[PlayerId]float64)
+	i := 0
+	for i < e.State.NumPlayers {
+		j := i + 1
+		for j < e.State.NumPlayers && 
+			scores[j].vp == scores[i].vp && 
+			scores[j].inc == scores[i].inc && 
+			scores[j].money == scores[i].money {
+			j++
+		}
+		
+		sumPayout := 0.0
+		for k := i; k < j; k++ {
+			sumPayout += getRawPayout(k, e.State.NumPlayers)
+		}
+		avgPayout := sumPayout / float64(j - i)
+		
+		for k := i; k < j; k++ {
+			rankResults[scores[k].id] = avgPayout
+		}
+		i = j
+	}
+	
+	return rankResults[active] * scoreScale
 }
 
 // ChooseBestCardForAction implements the V3.0 heuristic for automated card selection.
