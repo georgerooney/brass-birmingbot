@@ -54,11 +54,11 @@ interface Industry {
 
 interface Route {
   ID: number;
-  CityA: number;
   CityB: number;
-  Owner: number;
+  CityA: number;
   Type: string;
-  IsBuilt: boolean;
+  IsSubRoute: boolean;
+  SubRoutes: number[];
 }
 
 interface City {
@@ -94,6 +94,9 @@ interface EngineState {
   epoch: number;
   round_counter: number;
   actions_remaining: number;
+  route_built: boolean[];
+  route_owners: number[];
+  game_over: boolean;
 }
 
 interface Step {

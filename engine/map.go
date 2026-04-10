@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	_ "embed"
+	"sync"
 )
 
 //go:embed map_graph.json
@@ -54,9 +55,7 @@ type Route struct {
 	ID        int
 	CityA     CityID
 	CityB     CityID
-	Owner     PlayerId
 	Type      string // For now keep it as string "both", "rail_only", "canal_only"
-	IsBuilt   bool
 	IsSubRoute bool  // If true, this route is handled implicitly by a parent route
 	SubRoutes []int // For hyperedges (e.g. FB2 injection)
 }
@@ -68,7 +67,26 @@ type MapGraph struct {
 	NameMap map[string]CityID
 }
 
+var (
+	sharedBoard     *MapGraph
+	sharedBoardOnce sync.Once
+)
+
+// GetSharedBoard returns a read-only instance of the map layout.
+// This allows 32+ parallel environments to share the same memory for the graph.
+func GetSharedBoard() *MapGraph {
+	sharedBoardOnce.Do(func() {
+		sharedBoard = &MapGraph{
+			Adj:     make(map[CityID][]int),
+			NameMap: make(map[string]CityID),
+		}
+		sharedBoard.loadMap()
+	})
+	return sharedBoard
+}
+
 func NewMapGraph() *MapGraph {
+	// Deprecated: use GetSharedBoard instead for RL environments.
 	mg := &MapGraph{
 		Adj:     make(map[CityID][]int),
 		NameMap: make(map[string]CityID),
@@ -124,9 +142,7 @@ func (m *MapGraph) loadMap() {
 			ID:        routeID,
 			CityA:     srcID,
 			CityB:     destID,
-			Owner:     -1, // -1 means no owner yet
 			Type:      edgeType,
-			IsBuilt:   false,
 			SubRoutes: []int{},
 		})
 
@@ -194,24 +210,27 @@ func (m *MapGraph) loadMap() {
 }
 
 // HasConnection BFS to check connectivity
-func (m *MapGraph) HasConnection(start, target CityID) bool {
+func (m *MapGraph) HasConnection(gs *GameState, start, target CityID) bool {
 	if start == target {
 		return true
 	}
-	visited := make(map[CityID]bool)
-	queue := []CityID{start}
-	visited[start] = true
+	// Use GameState's BFS generation for speed/safety
+	gs.bfsGen++
+	gs.bfsQueue = gs.bfsQueue[:0]
+	
+	gs.bfsQueue = append(gs.bfsQueue, start)
+	gs.bfsVisited[start] = gs.bfsGen
 
-	for len(queue) > 0 {
-		curr := queue[0]
-		queue = queue[1:]
+	for len(gs.bfsQueue) > 0 {
+		curr := gs.bfsQueue[0]
+		gs.bfsQueue = gs.bfsQueue[1:]
 
 		for _, routeID := range m.Adj[curr] {
-			route := m.Routes[routeID]
-			if !route.IsBuilt {
+			if !gs.RouteBuilt[routeID] {
 				continue
 			}
 			
+			route := m.Routes[routeID]
 			var next CityID
 			if route.CityA == curr {
 				next = route.CityB
@@ -219,9 +238,9 @@ func (m *MapGraph) HasConnection(start, target CityID) bool {
 				next = route.CityA
 			}
 
-			if !visited[next] {
-				visited[next] = true
-				queue = append(queue, next)
+			if gs.bfsVisited[next] != gs.bfsGen {
+				gs.bfsVisited[next] = gs.bfsGen
+				gs.bfsQueue = append(gs.bfsQueue, next)
 				if next == target {
 					return true
 				}

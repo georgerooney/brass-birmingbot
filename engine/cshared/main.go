@@ -63,13 +63,32 @@ func BrassStep(envID C.int32_t, actionID C.int32_t, denseRewardScale C.double, r
 	if env == nil {
 		return
 	}
-	reward, done := env.Step(int(actionID), false, float64(denseRewardScale))
+	// Action names/details are required for dashboard traces, so we always include metadata in BrassStep.
+	reward, done := env.Step(int(actionID), true, float64(denseRewardScale))
 	*rewardOut = C.float(reward)
 	if done {
 		*doneOut = 1
 	} else {
 		*doneOut = 0
 	}
+}
+
+//export BrassGetStepMetadataJSON
+func BrassGetStepMetadataJSON(envID C.int32_t, bufOut *C.char, maxLen C.int) C.int {
+	env := lookupEnv(envID)
+	if env == nil {
+		return 0
+	}
+	jsonData, err := json.Marshal(env.LastMetadata)
+	if err != nil {
+		return 0
+	}
+	if len(jsonData) >= int(maxLen) {
+		return C.int(-len(jsonData))
+	}
+	cSlice := unsafe.Slice((*byte)(unsafe.Pointer(bufOut)), maxLen)
+	copy(cSlice, jsonData)
+	return C.int(len(jsonData))
 }
 
 // ─── Observation ──────────────────────────────────────────────────────────────

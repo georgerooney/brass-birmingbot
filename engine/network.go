@@ -29,10 +29,10 @@ func (gs *GameState) HasConnectionFast(start, target CityID) bool {
 		head++
 
 		for _, routeID := range gs.Board.Adj[curr] {
-			route := gs.Board.Routes[routeID]
-			if !route.IsBuilt {
+			if !gs.RouteBuilt[routeID] {
 				continue
 			}
+			route := gs.Board.Routes[routeID]
 			next := route.CityA
 			if next == curr {
 				next = route.CityB
@@ -67,10 +67,10 @@ func (gs *GameState) IsMerchantConnected(start CityID) bool {
 		}
 
 		for _, routeID := range gs.Board.Adj[curr] {
-			route := gs.Board.Routes[routeID]
-			if !route.IsBuilt {
+			if !gs.RouteBuilt[routeID] {
 				continue
 			}
+			route := gs.Board.Routes[routeID]
 			next := route.CityA
 			if next == curr {
 				next = route.CityB
@@ -96,8 +96,7 @@ func (gs *GameState) IsInNetwork(playerID PlayerId, city CityID) bool {
 	}
 	// Rule 2: Do they have a built route adjacent to here?
 	for _, routeID := range gs.Board.Adj[city] {
-		r := gs.Board.Routes[routeID]
-		if r.IsBuilt && r.Owner == playerID {
+		if gs.RouteBuilt[routeID] && gs.RouteOwners[routeID] == playerID {
 			return true
 		}
 	}
@@ -111,8 +110,8 @@ func (gs *GameState) IsFirstBuild(playerID PlayerId) bool {
 			return false
 		}
 	}
-	for _, r := range gs.Board.Routes {
-		if r.IsBuilt && r.Owner == playerID {
+	for routeID := range gs.RouteBuilt {
+		if gs.RouteBuilt[routeID] && gs.RouteOwners[routeID] == playerID {
 			return false
 		}
 	}
@@ -132,8 +131,8 @@ func (gs *GameState) IsAdjacentToNetwork(routeID int, playerID PlayerId) bool {
 		}
 	}
 	if !hasPresence {
-		for _, r := range gs.Board.Routes {
-			if r.IsBuilt && r.Owner == playerID {
+		for routeID := range gs.RouteBuilt {
+			if gs.RouteBuilt[routeID] && gs.RouteOwners[routeID] == playerID {
 				hasPresence = true
 				break
 			}
@@ -178,10 +177,10 @@ func (gs *GameState) findBestCoalSource(start CityID, activePlayer PlayerId) *Co
 		}
 
 		for _, routeID := range gs.Board.Adj[curr.city] {
-			route := gs.Board.Routes[routeID]
-			if !route.IsBuilt {
+			if !gs.RouteBuilt[routeID] {
 				continue
 			}
+			route := gs.Board.Routes[routeID]
 			next := route.CityA
 			if next == curr.city {
 				next = route.CityB
