@@ -113,6 +113,12 @@ class BrassEnv(gym.Env):
         self._env_id = self.lib.BrassNewEnv(num_players)
         self.step_count = 0
         
+    def set_num_players(self, num_players: int) -> None:
+        if num_players != self.num_players:
+            self.lib.BrassFreeEnv(self._env_id)
+            self.num_players = num_players
+            self._env_id = self.lib.BrassNewEnv(num_players)
+            
     def reset(
         self,
         *,
@@ -159,6 +165,7 @@ class BrassEnv(gym.Env):
         truncated = self.step_count > 200
         
         info = {}
+        info["num_players"] = self.num_players
         
         if include_state:
             state_json = self._get_state_json()
