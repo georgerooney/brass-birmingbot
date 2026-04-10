@@ -58,93 +58,39 @@ def make_env_fn(rank: int, num_players: int):
 
 class BrassExpertExtractor(BaseFeaturesExtractor):
     """Separates the flat observation into Board and Hand components."""
-    def __init__(self, observation_space, features_dim: int = 384):
+    def __init__(self, observation_space, features_dim: int = 128):
         super().__init__(observation_space, features_dim)
         # Slices (must match engine/observation.go)
         self.board_size = 2204
-        self.hand_size = 8
-        self.card_width = 24
         
         # Board Encoder: Condenses the huge board state into a strategic embedding
+        # Shrinking to 2-layer compact MLP (Back to Basics)
         self.board_encoder = nn.Sequential(
-            nn.Linear(self.board_size, 512),
+            nn.Linear(self.board_size, 256),
             nn.LeakyReLU(),
-            nn.Linear(512, 256),
+            nn.Linear(256, features_dim),
             nn.LeakyReLU(),
-            nn.Linear(256, 256), # Strategic Board latent (Fixed 256)
-            nn.LeakyReLU(),
-        )
-        
-        # Card Encoder: Processes each hand slot through shared weights
-        self.card_encoder = nn.Sequential(
-            nn.Linear(self.card_width, 64),
-            nn.LeakyReLU(),
-            nn.Linear(64, 32),
-            nn.LeakyReLU(),
-            nn.Linear(32, 16),
         )
 
     def forward(self, observations: th.Tensor) -> th.Tensor:
-        # Separate board and hand
+        # Narrow focus: strategic board state only
         board_obs = observations[:, :self.board_size]
-        hand_obs = observations[:, self.board_size:].reshape(-1, self.hand_size, self.card_width)
-        
-        # 1. Global Board Embedding
-        board_latent = self.board_encoder(board_obs)
-        
-        # 2. Individual Card Profiles
-        # Process all (Batch * HandSize) cards through the same weights
-        hand_flat = hand_obs.reshape(-1, self.card_width)
-        card_profiles = self.card_encoder(hand_flat)
-        card_profiles = card_profiles.reshape(-1, self.hand_size, 16)
-        
-        # Combine into a composite latent for the Value Function and Base Policy
-        # Flat hand for the shared part of the model
-        hand_latent = card_profiles.reshape(-1, self.hand_size * 16)
-        return th.cat([board_latent, hand_latent], dim=1) # Total 256 + 128 = 384
+        return self.board_encoder(board_obs)
 
 class BrassExpertPolicy(MaskableActorCriticPolicy):
-    """Custom policy head implementing the dot-product compatibility matrix."""
+    """Simplified policy head for purely strategic actions."""
+    def _get_action_logits(self, latent_pi: th.Tensor) -> th.Tensor:
+        # standard linear head for the flattened 1400 strategic action space
+        return self.action_net(latent_pi)
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.embed_dim = 16
-        self.num_actions = 1500
-        self.num_slots = 8
+        # Re-allocate the action_net to match our new 1,400 strategic action space
+        self.action_net = nn.Linear(self.mlp_extractor.latent_dim_pi, 1400)
         
-        # Action Profile Generator: Maps board context to action "needs"
-        # We tie this to the board latent dimension (256)
-        self.action_generator = nn.Sequential(
-            nn.Linear(256, 512),
-            nn.LeakyReLU(),
-            nn.Linear(512, self.num_actions * self.embed_dim),
-        )
-
-        # Force near-uniform start
-        for m in self.action_generator:
-            if isinstance(m, nn.Linear):
-                nn.init.orthogonal_(m.weight, gain=0.01)
-                nn.init.constant_(m.bias, 0)
-
-    def _get_action_logits(self, features: th.Tensor) -> th.Tensor:
-        # 1. Unpack Board and Hand latents
-        # Board latent was 256, Hand was 8*16
-        board_latent = features[:, :256]
-        card_profiles = features[:, 256:].reshape(-1, self.num_slots, self.embed_dim)
-        
-        # 2. Generate Action Profiles from board context
-        action_profiles = self.action_generator(board_latent)
-        action_profiles = action_profiles.reshape(-1, self.num_actions, self.embed_dim)
-        
-        # 3. Compute Compatibility Matrix
-        # [Batch, 1500, 64] bmm [Batch, 64, 8] -> [Batch, 1500, 8]
-        # Scaled dot-product (v2.6 Balanced Heat: / 5.0)
-        logits = th.bmm(action_profiles, card_profiles.transpose(1, 2)) / 5.0
-        
-        # 4. Flatten to 8000 Discrete Action space
-        # Order: actionID + (slotIdx * 1000)
-        # To match Go indexing, we transpose to [Batch, 8, 1000] then flatten
-        logits = logits.transpose(1, 2).reshape(-1, self.num_slots * self.num_actions)
-        return logits
+        # Orthogonal init for stable start
+        nn.init.orthogonal_(self.action_net.weight, gain=0.01)
+        nn.init.constant_(self.action_net.bias, 0)
 
     def forward(self, obs: th.Tensor, deterministic: bool = False, action_masks: th.Tensor = None):
         features = self.extract_features(obs)
@@ -190,8 +136,14 @@ class PositionWinRateCallback(BaseCallback):
                 # Record immediately to ensure it shows up in the SB3 table
                 self.logger.record("rollout/p1_win_rate", np.mean(self.p1_wins))
                 
-                if "vps" in t_info:
-                    print(f"DEBUG: Game Finished. VPs: {t_info['vps']}. P1 Win: {p1_win}")
+                # Check terminal_observation from VecMonitor if present
+                vps = t_info.get("vps")
+                if vps is None and "terminal_observation" in info:
+                    # If SB3 wrapped the terminal state, we might need to look harder
+                    pass 
+                
+                if vps:
+                    print(f"DEBUG: Game Finished. VPs: {vps}. P1 Win: {p1_win}")
         
         return True
 
@@ -293,12 +245,12 @@ def main() -> None:
         vec_env = SubprocVecEnv(env_fns)
         vec_env = VecMonitor(vec_env)
 
-        # Network configuration
-        features_dim = 384 # 256 (board) + 128 (hand)
+        # Simplified Network configuration (Back to Basics)
+        features_dim = 128 
         policy_kwargs = dict(
             features_extractor_class=BrassExpertExtractor,
             features_extractor_kwargs=dict(features_dim=features_dim),
-            net_arch=dict(pi=[], vf=[256]), # PI must be identity for the Expert Head
+            net_arch=dict(pi=[128, 128], vf=[128, 128]), 
         )
 
         n_steps = 512  # rollout length (total batch = n_steps × n_envs)
@@ -326,13 +278,13 @@ def main() -> None:
                 BrassExpertPolicy,
                 vec_env,
                 n_steps=n_steps,
-                batch_size=4096,       # Increased from 1024 for stable gradients
-                n_epochs=10,           # Increased from 4 for better sample efficiency
-                gamma=0.997,           # Increased from 0.99 for far-sightedness
-                gae_lambda=0.98,       # Increased from 0.95 for variance reduction
+                batch_size=8192,       
+                n_epochs=10,           
+                gamma=0.997,           
+                gae_lambda=0.98,       
                 clip_range=0.2,
-                target_kl=0.015,       # Safety rail for higher update frequency
-                ent_coef=0.01,         # Increased from 0.005 to encourage exploration with sharper logits
+                target_kl=0.015,       
+                ent_coef=0.01,         # Tighter entropy for smaller space
                 learning_rate=lr_schedule,
                 policy_kwargs=policy_kwargs,
                 verbose=1,
