@@ -9,7 +9,7 @@ interface StrategyHubProps {
 
 export const StrategyHub: React.FC<StrategyHubProps> = ({ analysisData }) => {
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
       className="absolute top-8 right-8 w-96 bg-black/80 backdrop-blur-xl rounded-2xl p-6 border border-white/10 space-y-6 max-h-[80%] overflow-y-auto custom-scrollbar shadow-2xl"
     >

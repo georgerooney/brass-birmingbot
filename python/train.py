@@ -10,25 +10,34 @@ Usage:
 """
 
 from __future__ import annotations
-import argparse
-import os
-import subprocess
-import sys
-import time
-from collections import deque, defaultdict
+from collections import deque
 from datetime import datetime
 from pathlib import Path
 import multiprocessing
 
 import numpy as np
-import torch # Just the base import, we'll use th inside functions
 
 # Base SB3 classes are okay at top-level; the heavy model/torch logic is moved inside main()
-from stable_baselines3.common import utils
 from stable_baselines3.common.callbacks import CheckpointCallback, BaseCallback
 from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor
-from config import CurriculumState, DynamicLRScheduler, get_args, PPO_N_STEPS, PPO_BATCH_SIZE, PPO_N_EPOCHS, PPO_GAMMA, PPO_GAE_LAMBDA, PPO_CLIP_RANGE, PPO_TARGET_KL, PPO_ENT_COEF, NET_ARCH
+from config import (
+    CurriculumState,
+    DynamicLRScheduler,
+    get_args,
+    PPO_N_STEPS,
+    PPO_BATCH_SIZE,
+    PPO_N_EPOCHS,
+    PPO_GAMMA,
+    PPO_GAE_LAMBDA,
+    PPO_CLIP_RANGE,
+    PPO_TARGET_KL,
+    PPO_ENT_COEF,
+    NET_ARCH,
+)
 from utils import DiagnosticCallback
+import torch as th
+import torch.nn as nn
+from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 
 # --- Data Structures moved to config.py ---
 
@@ -36,52 +45,61 @@ from utils import DiagnosticCallback
 
 # --- Global Helpers ---
 
+
 def make_env_fn(rank: int, num_players: int):
     """Factory that SubprocVecEnv calls in each worker subprocess."""
+
     def _init():
         from brass_env import BrassEnv
+
         env = BrassEnv(num_players=num_players)
         return env
+
     return _init
+
 
 class CardAttentionExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space, hand_size: int = 8, card_width: int = 24):
         total_dim = observation_space.shape[0]
         hand_dim = hand_size * card_width
-        board_dim = total_dim - hand_dim
-        
+
         # Output dim is total_dim to match old model shapes!
         super().__init__(observation_space, total_dim)
-        
+
         self.hand_size = hand_size
         self.card_width = card_width
         self.hand_dim = hand_dim
-        
+
         # Small transformer for cards
         self.card_embed = nn.Linear(card_width, 16)
-        encoder_layer = nn.TransformerEncoderLayer(d_model=16, nhead=1, dim_feedforward=32, batch_first=True)
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=16, nhead=1, dim_feedforward=32, batch_first=True
+        )
         self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=1)
-        
+
         # Project back to hand_dim so total output dim is board_dim + hand_dim = total_dim
         self.card_expand = nn.Linear(16, hand_dim)
-        
+
     def forward(self, observations: th.Tensor) -> th.Tensor:
-        board_obs = observations[:, :-self.hand_dim]
-        hand_obs = observations[:, -self.hand_dim:]
-        
+        board_obs = observations[:, : -self.hand_dim]
+        hand_obs = observations[:, -self.hand_dim :]
+
         hand_obs = hand_obs.view(-1, self.hand_size, self.card_width)
         hand_embed = self.card_embed(hand_obs)
         hand_trans = self.transformer(hand_embed)
         hand_pooled = th.mean(hand_trans, dim=1)
-        
+
         hand_expanded = self.card_expand(hand_pooled)
-        
+
         return th.cat([board_obs, hand_expanded], dim=1)
+
 
 # --- Callbacks ---
 
+
 class PositionWinRateCallback(BaseCallback):
     """Logs the win rate of Player 1 to TensorBoard."""
+
     def __init__(self, window_size: int = 100, verbose: int = 0):
         super().__init__(verbose)
         self.p1_wins = deque(maxlen=window_size)
@@ -93,21 +111,29 @@ class PositionWinRateCallback(BaseCallback):
                 p1_win = 1 if t_info.get("winner") == 0 else 0
                 self.p1_wins.append(p1_win)
                 self.logger.record("rollout/p1_win_rate", np.mean(self.p1_wins))
-                
+
                 # Check terminal_observation from VecMonitor if present
                 vps = t_info.get("vps")
                 if vps is None and "terminal_observation" in info:
                     # If SB3 wrapped the terminal state, we might need to look harder
-                    pass 
-                
+                    pass
+
                 if vps:
                     print(f"DEBUG: Game Finished. VPs: {vps}. P1 Win: {p1_win}")
-        
+
         return True
+
 
 class CurriculumCallback(BaseCallback):
     """Callback to phase out dense rewards (VP/Income pulses) only after hitting performance targets."""
-    def __init__(self, state: CurriculumState, players: int, window_size: int = 1000, verbose: int = 0):
+
+    def __init__(
+        self,
+        state: CurriculumState,
+        players: int,
+        window_size: int = 1000,
+        verbose: int = 0,
+    ):
         super().__init__(verbose)
         self.state = state
         # Target: 4 VP per TOTAL action in the game.
@@ -116,7 +142,7 @@ class CurriculumCallback(BaseCallback):
         # 4p: 32 actions * 4 = 128.
         actions_per_game = {2: 40, 3: 36, 4: 32}
         self.target_vp = actions_per_game.get(players, 40) * 3.5
-        
+
         self.vp_history = deque(maxlen=window_size)
         self.current_reward_scale = 1.0
 
@@ -137,8 +163,12 @@ class CurriculumCallback(BaseCallback):
                 if avg_vp >= self.target_vp:
                     self.state.is_decaying = True
                     self.state.trigger_step = self.num_timesteps
-                    print(f"\nDEBUG: Performance target {self.target_vp} reached! (Avg: {avg_vp:.1f})")
-                    print(f"DEBUG: Starting Curriculum Decay Phase at step {self.state.trigger_step}.\n")
+                    print(
+                        f"\nDEBUG: Performance target {self.target_vp} reached! (Avg: {avg_vp:.1f})"
+                    )
+                    print(
+                        f"DEBUG: Starting Curriculum Decay Phase at step {self.state.trigger_step}.\n"
+                    )
 
         if self.state.is_decaying:
             elapsed = self.num_timesteps - self.state.trigger_step
@@ -146,14 +176,15 @@ class CurriculumCallback(BaseCallback):
             self.current_reward_scale = 0.1 + (0.9 * progress)
         else:
             self.current_reward_scale = 1.0
-        
+
         self.training_env.env_method("set_reward_scale", self.current_reward_scale)
-        
+
         self.logger.record("train/dense_reward_scale", self.current_reward_scale)
         self.logger.record("train/is_decaying", int(self.state.is_decaying))
         if len(self.vp_history) > 0:
             self.logger.record("train/rolling_avg_vp", np.mean(self.vp_history))
         return True
+
 
 # --- Schedulers moved to config.py ---
 
@@ -161,14 +192,16 @@ class CurriculumCallback(BaseCallback):
 
 # --- Main Logic ---
 
+
 def main() -> None:
     try:
-        multiprocessing.set_start_method('spawn', force=True)
+        multiprocessing.set_start_method("spawn", force=True)
     except RuntimeError:
-        pass # Already set
-        
+        pass  # Already set
+
     import torch as th
     from sb3_contrib import MaskablePPO
+
     args = get_args()
 
     # Setup Directory Structure
@@ -176,7 +209,7 @@ def main() -> None:
     run_id = args.run_name if args.run_name else f"ppo_{timestamp}"
     run_dir = Path(__file__).parent / "runs" / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
-    
+
     checkpoint_dir = run_dir / "checkpoints"
     tensorboard_dir = run_dir / "tb_logs"
 
@@ -189,7 +222,7 @@ def main() -> None:
         vec_env = VecMonitor(vec_env)
 
         # Query board size from environment
-        board_size = vec_env.get_attr('board_size')[0]
+        board_size = vec_env.get_attr("board_size")[0]
         print(f"Queried board size: {board_size}")
 
         if args.use_transformer:
@@ -204,11 +237,13 @@ def main() -> None:
             )
 
         # n_steps = 1024 (rollout length, total batch = n_steps × n_envs)
-        
+
         # Instantiate Callbacks
         # Curriculum Tracking (phases out dense rewards after performance threshold)
         curriculum_state = CurriculumState(decay_steps=5_000_000)
-        curriculum_callback = CurriculumCallback(state=curriculum_state, players=args.players)
+        curriculum_callback = CurriculumCallback(
+            state=curriculum_state, players=args.players
+        )
         lr_schedule = DynamicLRScheduler(args.lr, curriculum_state)
         win_rate_callback = PositionWinRateCallback(window_size=100)
 
@@ -216,7 +251,7 @@ def main() -> None:
             print(f"Loading existing model from: {args.load}")
             # Load the saved model to get its weights (uses its saved architecture)
             loaded_model = MaskablePPO.load(args.load)
-            
+
             print("Creating new model with target architecture...")
             model = MaskablePPO(
                 "MlpPolicy",
@@ -235,7 +270,7 @@ def main() -> None:
                 device="cuda" if th.cuda.is_available() else "cpu",
                 tensorboard_log=str(tensorboard_dir),
             )
-            
+
             print("Transferring weights (non-strict)...")
             model.policy.load_state_dict(loaded_model.policy.state_dict(), strict=False)
             del loaded_model
@@ -278,13 +313,18 @@ def main() -> None:
         diagnostic_callback = DiagnosticCallback(
             save_freq=max(250_000 // args.envs, 1),
             num_episodes=25,
-            log_file=str(run_dir / "diagnostics.log")
+            log_file=str(run_dir / "diagnostics.log"),
         )
 
         model.learn(
             total_timesteps=args.steps,
             progress_bar=False,
-            callback=[checkpoint_callback, win_rate_callback, curriculum_callback, diagnostic_callback],
+            callback=[
+                checkpoint_callback,
+                win_rate_callback,
+                curriculum_callback,
+                diagnostic_callback,
+            ],
             reset_num_timesteps=False if args.load else True,
         )
 

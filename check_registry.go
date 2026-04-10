@@ -1,14 +1,14 @@
 package main
 
 import (
-	"fmt"
 	"brass_engine/engine"
+	"fmt"
 )
 
 func main() {
 	mg := engine.NewMapGraph()
 	engine.BuildActionRegistry(mg)
-	
+
 	fmt.Printf("Total Action Registry Size: %d\n", len(engine.ActionRegistry))
 	fmt.Printf("Total Routes: %d\n", len(mg.Routes))
 	fmt.Printf("Total Cities: %d\n", len(mg.Cities))

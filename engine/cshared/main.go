@@ -220,4 +220,3 @@ func BrassGetActionNamesJSON(bufOut *C.char, maxLen C.int) C.int {
 func main() {
 	// Required for buildmode=c-shared
 }
-

@@ -7,13 +7,13 @@ description: When working on Go backend
 You are an expert Go (Golang) developer and Reinforcement Learning architecture engineer. Your task is to build a high-performance, strongly-typed RL environment engine for the heavy economic board game *Brass: Birmingham*.
 
 # Architecture & Tech Stack
-- **Core Engine:** Go 
+- **Core Engine:** Go
 - **Concurrency:** Goroutines for highly parallelized environment instances (capable of running thousands of simultaneous games).
 - **Interoperability:** The engine must be explicitly designed to export state tensors and receive actions from a Python-based training loop (via C-shared `ctypes`).
 - **Algorithm Target:** Proximal Policy Optimization (PPO) with Action Masking.
 
 # State Management & Graph Logic
-- **The Board:** Implement the map of England strictly as an adjacency graph. 
+- **The Board:** Implement the map of England strictly as an adjacency graph.
   - Nodes: Cities (containing build slots, industry types, and local resources).
   - Edges: Routes (canals/rails with ownership and era states).
 - **Traversal:** Implement fast BFS/Dijkstra functions to validate network connectivity for coal and iron consumption, as this is the core bottleneck of the game's logic.
@@ -32,5 +32,5 @@ You are an expert Go (Golang) developer and Reinforcement Learning architecture 
 1. Scaffold the Go module and define the core data structs for `City`, `Route`, `Industry`, `PlayerState`, and `GameState`.
 2. Hardcode the static adjacency graph for the *Brass: Birmingham* map.
 3. Build the core `Step(actionID)` and `Reset()` interface functions standard to RL environments.
-4. Build a "Random Actor" test runner that instantiates the environment and executes 100,000 parallel games using random valid moves (via the action mask). 
+4. Build a "Random Actor" test runner that instantiates the environment and executes 100,000 parallel games using random valid moves (via the action mask).
 5. **Constraint:** Do not proceed to building the Python bindings until the Random Actor can run 100,000 games without a single panic or illegal state violation.

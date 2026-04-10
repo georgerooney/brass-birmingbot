@@ -106,10 +106,10 @@ func TestDevelopNonDevelopable(t *testing.T) {
 	BuildActionRegistry(env.State.Board)
 	p := env.State.Players[env.State.Active]
 	p.Money = 100
-	
+
 	// Set Pottery level to 1 (not developable)
 	p.CurrentLevel[PotteryType] = 1
-	
+
 	// Hand has 1 card
 	p.Hand = []Card{{Type: LocationCard, CityID: 0}}
 
@@ -138,7 +138,7 @@ func TestCanalEraRailRestriction(t *testing.T) {
 	env := NewEnv(2)
 	p := env.State.Players[env.State.Active]
 	p.Money = 100
-	
+
 	env.State.Board = &MapGraph{
 		Cities: []City{
 			{ID: 0, Name: "City0"},
@@ -156,7 +156,7 @@ func TestCanalEraRailRestriction(t *testing.T) {
 
 	// Give player a card to allow action
 	p.Hand = []Card{{Type: LocationCard, CityID: 0}}
-	
+
 	// Player needs network presence or first build exception!
 	// Let's give them network presence in City 0 by placing an industry there!
 	env.State.Industries = append(env.State.Industries, &TokenState{
@@ -193,7 +193,7 @@ func TestRailEraCanalRestriction(t *testing.T) {
 	env := NewEnv(2)
 	p := env.State.Players[env.State.Active]
 	p.Money = 100
-	
+
 	env.State.Board = &MapGraph{
 		Cities: []City{
 			{ID: 0, Name: "City0"},
@@ -211,7 +211,7 @@ func TestRailEraCanalRestriction(t *testing.T) {
 
 	// Give player a card to allow action
 	p.Hand = []Card{{Type: LocationCard, CityID: 0}}
-	
+
 	// Player needs network presence and COAL for Rail Era!
 	env.State.Industries = append(env.State.Industries, &TokenState{
 		Owner:    p.ID,
@@ -248,7 +248,7 @@ func TestDoubleRailBeerConnection(t *testing.T) {
 	env := NewEnv(2)
 	p := env.State.Players[env.State.Active]
 	p.Money = 100
-	
+
 	env.State.Board = &MapGraph{
 		Cities: []City{
 			{ID: 0, Name: "City0"},
@@ -269,7 +269,7 @@ func TestDoubleRailBeerConnection(t *testing.T) {
 
 	// Give player a card to allow action
 	p.Hand = []Card{{Type: LocationCard, CityID: 0}}
-	
+
 	// Player needs network presence in City 0
 	env.State.Industries = append(env.State.Industries, &TokenState{
 		Owner:    p.ID,
@@ -302,7 +302,7 @@ func TestDoubleRailBeerConnection(t *testing.T) {
 	// Find Double Rail action for routes 0 and 1
 	actionDouble := -1
 	for _, a := range ActionRegistry {
-		if a.Type == ActionNetworkDouble && 
+		if a.Type == ActionNetworkDouble &&
 			((a.RouteID == 0 && a.RouteID2 == 1) || (a.RouteID == 1 && a.RouteID2 == 0)) {
 			actionDouble = a.ID
 			break
@@ -326,7 +326,7 @@ func TestDoubleRailBeerConnection(t *testing.T) {
 func TestSellRequiresConnection(t *testing.T) {
 	env := NewEnv(2)
 	p := env.State.Players[env.State.Active]
-	
+
 	env.State.Board = &MapGraph{
 		Cities: []City{
 			{ID: 0, Name: "City0"},
@@ -344,7 +344,7 @@ func TestSellRequiresConnection(t *testing.T) {
 
 	// Give player a card to allow action
 	p.Hand = []Card{{Type: LocationCard, CityID: 0}}
-	
+
 	// Player has Cotton Works at City 0
 	env.State.Industries = append(env.State.Industries, &TokenState{
 		Owner:    p.ID,
@@ -403,7 +403,7 @@ func TestSellRequiresConnection(t *testing.T) {
 func TestSellRequiresBeer(t *testing.T) {
 	env := NewEnv(2)
 	p := env.State.Players[env.State.Active]
-	
+
 	env.State.Board = &MapGraph{
 		Cities: []City{
 			{ID: 0, Name: "City0"},
@@ -421,7 +421,7 @@ func TestSellRequiresBeer(t *testing.T) {
 
 	// Give player a card to allow action
 	p.Hand = []Card{{Type: LocationCard, CityID: 0}}
-	
+
 	// Player has Cotton Works at City 0
 	env.State.Industries = append(env.State.Industries, &TokenState{
 		Owner:    p.ID,
@@ -486,7 +486,7 @@ func TestSellRequiresBeer(t *testing.T) {
 func TestSellBeerPriority(t *testing.T) {
 	env := NewEnv(2)
 	p := env.State.Players[env.State.Active]
-	
+
 	env.State.Board = &MapGraph{
 		Cities: []City{
 			{ID: 0, Name: "City0"},
@@ -504,7 +504,7 @@ func TestSellBeerPriority(t *testing.T) {
 
 	// Give player a card to allow action
 	p.Hand = []Card{{Type: LocationCard, CityID: 0}}
-	
+
 	// Player has Cotton Works at City 0
 	env.State.Industries = append(env.State.Industries, &TokenState{
 		Owner:    p.ID,
@@ -572,7 +572,7 @@ func TestSellBeerPriority(t *testing.T) {
 func TestSellIncreasesIncome(t *testing.T) {
 	env := NewEnv(2)
 	p := env.State.Players[env.State.Active]
-	
+
 	env.State.Board = &MapGraph{
 		Cities: []City{
 			{ID: 0, Name: "City0"},
@@ -590,7 +590,7 @@ func TestSellIncreasesIncome(t *testing.T) {
 
 	// Give player a card to allow action
 	p.Hand = []Card{{Type: LocationCard, CityID: 0}}
-	
+
 	// Player has Cotton Works at City 0
 	env.State.Industries = append(env.State.Industries, &TokenState{
 		Owner:    p.ID,
@@ -641,10 +641,10 @@ func TestSellIncreasesIncome(t *testing.T) {
 func TestLoanIncomeLimit(t *testing.T) {
 	env := NewEnv(2)
 	p := env.State.Players[env.State.Active]
-	
+
 	// Give player a card to allow action
 	p.Hand = []Card{{Type: LocationCard, CityID: 0}}
-	
+
 	// Find Loan action
 	actionLoan := -1
 	for _, a := range ActionRegistry {
@@ -680,7 +680,7 @@ func TestLoanIncomeLimit(t *testing.T) {
 func TestScoutRules(t *testing.T) {
 	env := NewEnv(2)
 	p := env.State.Players[env.State.Active]
-	
+
 	// Find Scout action
 	actionScout := -1
 	for _, a := range ActionRegistry {

@@ -1,9 +1,9 @@
 package engine
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
-	_ "embed"
 )
 
 //go:embed mercantile_tiles.json

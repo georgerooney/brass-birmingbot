@@ -46,7 +46,7 @@ const (
 )
 
 type Card struct {
-	Type     CardType	 	`json:"type"`
-	CityID   int          	`json:"city_id"`   // For LocationCards
-	Industry IndustryType 	`json:"industry"`  // For IndustryCards
+	Type     CardType     `json:"type"`
+	CityID   int          `json:"city_id"`  // For LocationCards
+	Industry IndustryType `json:"industry"` // For IndustryCards
 }

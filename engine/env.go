@@ -109,7 +109,9 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 		RouteID:      -1,
 		Era:          "Canal",
 	}
-	if e.State.Epoch == RailEra { e.LastMetadata.Era = "Rail" }
+	if e.State.Epoch == RailEra {
+		e.LastMetadata.Era = "Rail"
+	}
 
 	switch action.Type {
 	case ActionLoan:
@@ -143,7 +145,7 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 			card := e.State.Players[e.State.Active].Hand[actualCardIdx]
 			e.LastMetadata.CardsSpent = []Card{card}
 			e.State.ReturnCard(e.State.Active, actualCardIdx)
-			
+
 			// v2.4 Clarity: Small penalty for burning a LocationCard for a Loan
 			if card.Type == LocationCard {
 				reward -= 0.01 * denseRewardScale
@@ -158,7 +160,7 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 				card := player.Hand[actualCardIdx]
 				e.LastMetadata.CardsSpent = []Card{card}
 				e.State.ReturnCard(e.State.Active, actualCardIdx)
-				
+
 				// v2.4 Clarity: Small penalty for burning a LocationCard for a Pass
 				if card.Type == LocationCard {
 					reward -= 0.01 * denseRewardScale
@@ -168,7 +170,7 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 			// Allowed to pass with empty hand, no card spent
 			e.LastMetadata.CardsSpent = []Card{}
 		}
-		
+
 		reward -= 0.02 * denseRewardScale
 
 	case ActionScout:
@@ -179,7 +181,7 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 		// Gain Wilds
 		player.Hand = append(player.Hand, Card{Type: WildLocationCard})
 		player.Hand = append(player.Hand, Card{Type: WildIndustryCard})
-		
+
 		reward += 0.025 * denseRewardScale
 
 	case ActionDevelop:
@@ -224,7 +226,7 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 		if !ok {
 			return 0.0, false
 		}
-		
+
 		card := player.Hand[actualCardIdx]
 		e.State.ReturnCard(e.State.Active, actualCardIdx)
 		e.LastMetadata.CardsSpent = []Card{card}
@@ -232,13 +234,13 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 		// 3. Stats and Costs
 		currLvl := player.CurrentLevel[action.IndustryType]
 		stat := IndustryCatalog[action.IndustryType][currLvl]
-		
+
 		coalCost := e.State.SourceCoal(action.CityID, stat.CostCoal, e.State.Active)
 		ironCost := e.State.SourceIron(stat.CostIron, e.State.Active)
-		
+
 		e.LastMetadata.CoalConsumed = stat.CostCoal
 		e.LastMetadata.IronConsumed = stat.CostIron
-		
+
 		player.Money -= (stat.CostMoney + coalCost + ironCost)
 
 		// 4. Overbuild Cleanup
@@ -264,8 +266,10 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 		// Yield logic
 		if action.IndustryType == CoalMineType || action.IndustryType == IronWorksType {
 			yield := stat.YieldCanal
-			if e.State.Epoch == RailEra { yield = stat.YieldRail }
-			
+			if e.State.Epoch == RailEra {
+				yield = stat.YieldRail
+			}
+
 			if action.IndustryType == CoalMineType {
 				token.Coal = yield
 				// Sell to Market immediately if connected to any merchant slot city
@@ -290,7 +294,9 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 			}
 		} else if action.IndustryType == BreweryType {
 			token.Beer = 1
-			if e.State.Epoch == RailEra { token.Beer = 2 }
+			if e.State.Epoch == RailEra {
+				token.Beer = 2
+			}
 		}
 
 		e.State.Industries = append(e.State.Industries, token)
@@ -299,8 +305,8 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 		player.ConsumeToken(action.IndustryType)
 
 		// 7. Auto-Flip if yield exhausted (Market sell-off)
-		if (action.IndustryType == CoalMineType && token.Coal == 0) || 
-		   (action.IndustryType == IronWorksType && token.Iron == 0) {
+		if (action.IndustryType == CoalMineType && token.Coal == 0) ||
+			(action.IndustryType == IronWorksType && token.Iron == 0) {
 			e.State.FlipIndustry(len(e.State.Industries) - 1)
 		}
 
@@ -317,12 +323,14 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 		wasConnectedA := e.State.IsMerchantConnected(route.CityA)
 		wasConnectedB := e.State.IsMerchantConnected(route.CityB)
 
-		if includeMetadata { e.LastMetadata.RouteID = action.RouteID }
+		if includeMetadata {
+			e.LastMetadata.RouteID = action.RouteID
+		}
 		if e.State.Epoch == CanalEra {
 			player.Money -= 3
 		} else {
 			player.Money -= 5
-			cost := e.State.SourceCoal(route.CityA, 1, e.State.Active) 
+			cost := e.State.SourceCoal(route.CityA, 1, e.State.Active)
 			player.Money -= cost
 			e.LastMetadata.CoalConsumed = 1
 		}
@@ -341,8 +349,8 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 		// Reward: Removed for purification
 		reward += 0.0 * denseRewardScale
 
-		if (!wasConnectedA && e.State.IsMerchantConnected(route.CityA)) || 
-		   (!wasConnectedB && e.State.IsMerchantConnected(route.CityB)) {
+		if (!wasConnectedA && e.State.IsMerchantConnected(route.CityA)) ||
+			(!wasConnectedB && e.State.IsMerchantConnected(route.CityB)) {
 			reward += 0.05 * denseRewardScale
 		}
 
@@ -355,7 +363,7 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 	case ActionNetworkDouble:
 		r1ID := action.RouteID
 		r2ID := action.RouteID2
-		
+
 		// 1. Pay Money
 		player.Money -= 15
 
@@ -369,7 +377,7 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 
 		// 4. Source Beer (Breweries ONLY for links)
 		e.State.SourceBeer(e.State.Board.Routes[r2ID].CityA, e.State.Active, true, false, true)
-		
+
 		player.Money -= (c1cost + c2cost)
 		e.LastMetadata.CoalConsumed = 2
 		e.LastMetadata.BeerConsumed = 1
@@ -387,13 +395,11 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 		// Reward: Stronger positive reward for building double links
 		reward += 0.10 * denseRewardScale
 
-
-
 	case ActionSell:
 		// Version 4: Greedy Sell Heuristic
 		// Heuristic Priority: Merchant Beer > Other Player's Beer (Network) > Own Beer.
 		// We sell EVERY possible reachable industry in one action.
-		
+
 		for {
 			flippedAny := false
 			for i, tok := range e.State.Industries {
@@ -412,7 +418,7 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 					if !e.State.CanSellToMerchant(tok, midx) {
 						continue
 					}
-					
+
 					// Priority 1: Merchant Beer
 					if m.AvailableBeer > 0 {
 						if bestMerchantIdx == -1 || beerSource > 0 {
@@ -420,7 +426,7 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 							beerSource = 0
 						}
 					}
-					
+
 					// Priority 2: Other Player's Beer (Network)
 					if beerSource > 1 || bestMerchantIdx == -1 {
 						if e.State.HasNetworkBeer(tok.CityID, e.State.Active, false) {
@@ -492,11 +498,15 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 				if e.State.Epoch == RailEra {
 					// Game fully complete — score and mark done
 					evs := e.State.ScoreEra(includeMetadata)
-					if includeMetadata { e.LastMetadata.ScoreEvents = append(e.LastMetadata.ScoreEvents, evs...) }
+					if includeMetadata {
+						e.LastMetadata.ScoreEvents = append(e.LastMetadata.ScoreEvents, evs...)
+					}
 					e.State.GameOver = true
 				} else {
 					evs := e.State.ScoreEra(includeMetadata) // Canal → Rail transition
-					if includeMetadata { e.LastMetadata.ScoreEvents = append(e.LastMetadata.ScoreEvents, evs...) }
+					if includeMetadata {
+						e.LastMetadata.ScoreEvents = append(e.LastMetadata.ScoreEvents, evs...)
+					}
 					e.State.EndEraTransition() // This already does ScoreEra(false) internally, so we swap it
 				}
 			}
@@ -516,11 +526,15 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 			if e.State.IsEraOver() {
 				if e.State.Epoch == RailEra {
 					evs := e.State.ScoreEra(includeMetadata)
-					if includeMetadata { e.LastMetadata.ScoreEvents = append(e.LastMetadata.ScoreEvents, evs...) }
+					if includeMetadata {
+						e.LastMetadata.ScoreEvents = append(e.LastMetadata.ScoreEvents, evs...)
+					}
 					e.State.GameOver = true
 				} else {
 					evs := e.State.ScoreEra(includeMetadata)
-					if includeMetadata { e.LastMetadata.ScoreEvents = append(e.LastMetadata.ScoreEvents, evs...) }
+					if includeMetadata {
+						e.LastMetadata.ScoreEvents = append(e.LastMetadata.ScoreEvents, evs...)
+					}
 					e.State.EndEraTransition()
 				}
 			}
@@ -529,11 +543,11 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 
 	// ── Compute step reward ───────────────────────────────────────────────────
 	pAfter := e.State.Players[active]
-	
+
 	// Dense reward uses AuditVP (immediate boosts for flips and links)
 	// v2.7: High-Contrast Scoring Signal (1 VP = 0.5 reward, 1 Income = 0.1 reward)
-	vpDelta := (pAfter.VPAuditIndustries - prevAuditIndustries) + 
-               (pAfter.VPAuditLinks - prevAuditLinks)
+	vpDelta := (pAfter.VPAuditIndustries - prevAuditIndustries) +
+		(pAfter.VPAuditLinks - prevAuditLinks)
 	incomeDelta := pAfter.IncomeLevel - prevIncome
 
 	reward += (float64(vpDelta)*0.1 + float64(incomeDelta)*0.1) * denseRewardScale
@@ -554,7 +568,6 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 	if done {
 		reward += e.ComputeTerminalReward(active)
 	}
-
 
 	if includeMetadata {
 		e.LastMetadata.ProjectedVPs = make([]int, e.State.NumPlayers)
@@ -580,9 +593,9 @@ func (e *Env) BuildRoute(routeID int, owner PlayerId) {
 
 func (e *Env) ComputeTerminalReward(active PlayerId) float64 {
 	type pScore struct {
-		id PlayerId
-		vp int
-		inc int
+		id    PlayerId
+		vp    int
+		inc   int
 		money int
 	}
 	var scores []pScore
@@ -601,19 +614,41 @@ func (e *Env) ComputeTerminalReward(active PlayerId) float64 {
 	}
 
 	sort.Slice(scores, func(i, j int) bool {
-		if scores[i].vp != scores[j].vp { return scores[i].vp > scores[j].vp }
-		if scores[i].inc != scores[j].inc { return scores[i].inc > scores[j].inc }
+		if scores[i].vp != scores[j].vp {
+			return scores[i].vp > scores[j].vp
+		}
+		if scores[i].inc != scores[j].inc {
+			return scores[i].inc > scores[j].inc
+		}
 		return scores[i].money > scores[j].money
 	})
 
 	getRawPayout := func(rank int, total int) float64 {
 		switch total {
 		case 2:
-			if rank == 0 { return 1.0 } else { return -1.0 }
+			if rank == 0 {
+				return 1.0
+			} else {
+				return -1.0
+			}
 		case 3:
-			if rank == 0 { return 1.0 } else if rank == 1 { return 0.0 } else { return -1.0 }
+			if rank == 0 {
+				return 1.0
+			} else if rank == 1 {
+				return 0.0
+			} else {
+				return -1.0
+			}
 		case 4:
-			if rank == 0 { return 1.0 } else if rank == 1 { return 0.33 } else if rank == 2 { return -0.33 } else { return -1.0 }
+			if rank == 0 {
+				return 1.0
+			} else if rank == 1 {
+				return 0.33
+			} else if rank == 2 {
+				return -0.33
+			} else {
+				return -1.0
+			}
 		default:
 			return 0
 		}
@@ -623,25 +658,25 @@ func (e *Env) ComputeTerminalReward(active PlayerId) float64 {
 	i := 0
 	for i < e.State.NumPlayers {
 		j := i + 1
-		for j < e.State.NumPlayers && 
-			scores[j].vp == scores[i].vp && 
-			scores[j].inc == scores[i].inc && 
+		for j < e.State.NumPlayers &&
+			scores[j].vp == scores[i].vp &&
+			scores[j].inc == scores[i].inc &&
 			scores[j].money == scores[i].money {
 			j++
 		}
-		
+
 		sumPayout := 0.0
 		for k := i; k < j; k++ {
 			sumPayout += getRawPayout(k, e.State.NumPlayers)
 		}
-		avgPayout := sumPayout / float64(j - i)
-		
+		avgPayout := sumPayout / float64(j-i)
+
 		for k := i; k < j; k++ {
 			rankResults[scores[k].id] = avgPayout
 		}
 		i = j
 	}
-	
+
 	return rankResults[active] * scoreScale
 }
 
@@ -653,7 +688,9 @@ func (e *Env) ChooseBestCardForAction(p *PlayerState, action Action) int {
 	var validSlots []int
 	for slotIdx := 0; slotIdx < len(p.Hand); slotIdx++ {
 		actualIdx, ok := e.GetActualHandIndex(slotIdx)
-		if !ok { continue }
+		if !ok {
+			continue
+		}
 		if e.isValidActionWithCard(p, action, actualIdx) {
 			validSlots = append(validSlots, slotIdx)
 		}
@@ -663,26 +700,42 @@ func (e *Env) ChooseBestCardForAction(p *PlayerState, action Action) int {
 		return -1
 	}
 
-		// Priority scoring: lower is better (Location > Industry > Wild)
-		scoreSlot := func(slotIdx int) int {
-			actualIdx, _ := e.GetActualHandIndex(slotIdx)
-			card := p.Hand[actualIdx]
-			
-			if action.Type == ActionBuildIndustry {
-				if card.Type == LocationCard && card.CityID == int(action.CityID) { return 0 }
-				if card.Type == IndustryCard && card.Industry == action.IndustryType { return 1 }
-				if card.Type == WildLocationCard { return 2 }
-				if card.Type == WildIndustryCard { return 3 }
-				return 4 // Should not be reachable for Build if valid
+	// Priority scoring: lower is better (Location > Industry > Wild)
+	scoreSlot := func(slotIdx int) int {
+		actualIdx, _ := e.GetActualHandIndex(slotIdx)
+		card := p.Hand[actualIdx]
+
+		if action.Type == ActionBuildIndustry {
+			if card.Type == LocationCard && card.CityID == int(action.CityID) {
+				return 0
 			}
-			
-			// For non-build actions: Location > Industry > Wild.
-			if card.Type == LocationCard { return 0 }
-			if card.Type == IndustryCard { return 1 }
-			if card.Type == WildLocationCard { return 2 }
-			if card.Type == WildIndustryCard { return 3 }
-			return 4
+			if card.Type == IndustryCard && card.Industry == action.IndustryType {
+				return 1
+			}
+			if card.Type == WildLocationCard {
+				return 2
+			}
+			if card.Type == WildIndustryCard {
+				return 3
+			}
+			return 4 // Should not be reachable for Build if valid
 		}
+
+		// For non-build actions: Location > Industry > Wild.
+		if card.Type == LocationCard {
+			return 0
+		}
+		if card.Type == IndustryCard {
+			return 1
+		}
+		if card.Type == WildLocationCard {
+			return 2
+		}
+		if card.Type == WildIndustryCard {
+			return 3
+		}
+		return 4
+	}
 
 	bestSlot := validSlots[0]
 	bestScore := scoreSlot(bestSlot)
@@ -697,5 +750,3 @@ func (e *Env) ChooseBestCardForAction(p *PlayerState, action Action) int {
 
 	return bestSlot
 }
-
-

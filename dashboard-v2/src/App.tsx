@@ -1,18 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Eye, 
-  Activity, 
-  Zap, 
+import { AnimatePresence } from 'framer-motion';
+import {
+  Activity,
+  Zap,
   History,
-  TrendingUp,
   Map as MapIcon,
   Search,
   Loader2,
   AlertCircle,
   Play
 } from 'lucide-react';
-import type { GameSummary, Step, AnalysisData, EngineState } from './types';
+import type { GameSummary, Step, AnalysisData } from './types';
 import { cn } from './utils';
 
 // Components
@@ -51,9 +49,9 @@ export default function App() {
         }
 
         setLoading(false);
-      } catch (err: any) {
+      } catch (err) {
         console.error("Dashboard Init Error:", err);
-        setError(err.message);
+        setError((err as Error).message || "Unknown error");
         setLoading(false);
       }
     }
@@ -73,7 +71,7 @@ export default function App() {
       setCurrentStep(0);
       setViewMode('replay');
       setLoading(false);
-    } catch (err: any) {
+    } catch {
       setError("Failed to load game trace");
       setLoading(false);
     }
@@ -123,7 +121,7 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-6">
-          <button 
+          <button
             onClick={() => setShowCityLabels(!showCityLabels)}
             className={cn(
               "flex items-center gap-2 px-3 py-1.5 rounded-lg text-[9px] font-black transition-all uppercase tracking-widest border",
@@ -134,7 +132,7 @@ export default function App() {
           </button>
 
           <div className="flex items-center gap-3 bg-white/5 p-1 rounded-xl border border-white/10">
-            <button 
+            <button
               onClick={() => setViewMode('replay')}
               className={cn(
                 "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black transition-all uppercase tracking-widest",
@@ -143,7 +141,7 @@ export default function App() {
             >
               <History className="w-4 h-4" /> REPLAY VCR
             </button>
-            <button 
+            <button
               onClick={() => setViewMode('heatmap')}
               className={cn(
                 "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black transition-all uppercase tracking-widest",
@@ -161,15 +159,15 @@ export default function App() {
           <div className="p-6 border-b border-white/5">
             <div className="relative group">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-violet-400 transition-colors" />
-              <input 
-                type="text" placeholder="FILTER SIMULATIONS..." 
+              <input
+                type="text" placeholder="FILTER SIMULATIONS..."
                 className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-[10px] font-black tracking-widest uppercase focus:outline-none focus:border-violet-500/50 transition-all"
               />
             </div>
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-2">
             {games.map(game => (
-              <button 
+              <button
                 key={game.id} onClick={() => loadTrace(game)}
                 className={cn(
                   "w-full p-4 rounded-xl border transition-all flex flex-col gap-2 group",
@@ -211,10 +209,10 @@ export default function App() {
 
           {viewMode === 'replay' && <GameHUD currentState={currentState} />}
 
-          <GameBoard 
-            currentState={currentState} 
-            analysisData={analysisData} 
-            viewMode={viewMode} 
+          <GameBoard
+            currentState={currentState}
+            analysisData={analysisData}
+            viewMode={viewMode}
             showCityLabels={showCityLabels}
           />
 
@@ -224,10 +222,10 @@ export default function App() {
 
           <AnimatePresence>
             {viewMode === 'replay' && replayTrace.length > 0 && (
-              <StepFooter 
-                replayTrace={replayTrace} 
-                currentStep={currentStep} 
-                onStepChange={setCurrentStep} 
+              <StepFooter
+                replayTrace={replayTrace}
+                currentStep={currentStep}
+                onStepChange={setCurrentStep}
                 currentState={currentState}
                 onJumpToStart={onJumpToStart}
                 onJumpToEndCanal={onJumpToEndCanal}

@@ -46,7 +46,7 @@ func TestBuildFunds(t *testing.T) {
 	// Set money to high value and invalidate mask cache
 	p.Money = 100
 	env.maskDirty = true
-	
+
 	mask = env.GetActionMask()
 	if !mask[actionID] {
 		t.Errorf("Expected build action to be allowed (true) with sufficient funds, got false")
@@ -86,13 +86,13 @@ func TestLocationCard(t *testing.T) {
 	env.State.Board = &MapGraph{
 		Cities: []City{
 			{
-				ID:   0,
-				Name: "City0",
+				ID:         0,
+				Name:       "City0",
 				BuildSlots: [][]IndustryType{{CottonType}},
 			},
 			{
-				ID:   1,
-				Name: "City1",
+				ID:         1,
+				Name:       "City1",
 				BuildSlots: [][]IndustryType{{CottonType}},
 			},
 		},
@@ -134,13 +134,13 @@ func TestIndustryCard(t *testing.T) {
 	env.State.Board = &MapGraph{
 		Cities: []City{
 			{
-				ID:   0,
-				Name: "City0",
+				ID:         0,
+				Name:       "City0",
 				BuildSlots: [][]IndustryType{{CottonType}},
 			},
 			{
-				ID:   1,
-				Name: "City1",
+				ID:         1,
+				Name:       "City1",
 				BuildSlots: [][]IndustryType{{CottonType}},
 			},
 		},
@@ -289,13 +289,13 @@ func TestFirstBuildException(t *testing.T) {
 	env.State.Board = &MapGraph{
 		Cities: []City{
 			{
-				ID:   0,
-				Name: "City0",
+				ID:         0,
+				Name:       "City0",
 				BuildSlots: [][]IndustryType{{CottonType}},
 			},
 			{
-				ID:   1,
-				Name: "City1",
+				ID:         1,
+				Name:       "City1",
 				BuildSlots: [][]IndustryType{{CottonType}},
 			},
 		},
@@ -330,17 +330,17 @@ func TestFirstBuildException(t *testing.T) {
 func TestIronWorksCoal(t *testing.T) {
 	env := NewEnv(2)
 	p := env.State.Players[env.State.Active]
-	
+
 	env.State.Board = &MapGraph{
 		Cities: []City{
 			{
-				ID:   0,
-				Name: "City0",
+				ID:         0,
+				Name:       "City0",
 				BuildSlots: [][]IndustryType{{IronWorksType}},
 			},
 			{
-				ID:   1,
-				Name: "City1",
+				ID:         1,
+				Name:       "City1",
 				BuildSlots: [][]IndustryType{{CoalMineType}},
 			},
 		},
@@ -387,11 +387,11 @@ func TestIronWorksCoal(t *testing.T) {
 
 	// Now provide coal on board in City 1
 	env.State.Industries = append(env.State.Industries, &TokenState{
-		Owner:     p.ID,
-		CityID:    1,
-		Industry:  CoalMineType,
-		Level:     1,
-		Coal:      1,
+		Owner:    p.ID,
+		CityID:   1,
+		Industry: CoalMineType,
+		Level:    1,
+		Coal:     1,
 	})
 
 	env.maskDirty = true
@@ -406,7 +406,7 @@ func TestIronWorksCoal(t *testing.T) {
 func TestResourcePriority(t *testing.T) {
 	env := NewEnv(2)
 	p := env.State.Players[env.State.Active]
-	
+
 	env.State.Board = &MapGraph{
 		Cities: []City{
 			{ID: 0, Name: "City0", BuildSlots: [][]IndustryType{{IronWorksType}}},
@@ -431,11 +431,11 @@ func TestResourcePriority(t *testing.T) {
 
 	// Provide coal on board in City 1
 	env.State.Industries = append(env.State.Industries, &TokenState{
-		Owner:     p.ID,
-		CityID:    1,
-		Industry:  CoalMineType,
-		Level:     1,
-		Coal:      1,
+		Owner:    p.ID,
+		CityID:   1,
+		Industry: CoalMineType,
+		Level:    1,
+		Coal:     1,
 	})
 
 	action0 := -1
@@ -468,7 +468,7 @@ func TestResourcePriority(t *testing.T) {
 func TestResourceProximity(t *testing.T) {
 	env := NewEnv(2)
 	p := env.State.Players[env.State.Active]
-	
+
 	env.State.Board = &MapGraph{
 		Cities: []City{
 			{ID: 0, Name: "City0"},
@@ -489,25 +489,25 @@ func TestResourceProximity(t *testing.T) {
 
 	// Provide coal in City 1 (distance 1)
 	env.State.Industries = append(env.State.Industries, &TokenState{
-		Owner:     p.ID,
-		CityID:    1,
-		Industry:  CoalMineType,
-		Level:     1,
-		Coal:      1,
+		Owner:    p.ID,
+		CityID:   1,
+		Industry: CoalMineType,
+		Level:    1,
+		Coal:     1,
 	})
 
 	// Provide coal in City 2 (distance 2)
 	env.State.Industries = append(env.State.Industries, &TokenState{
-		Owner:     p.ID,
-		CityID:    2,
-		Industry:  CoalMineType,
-		Level:     1,
-		Coal:      1,
+		Owner:    p.ID,
+		CityID:   2,
+		Industry: CoalMineType,
+		Level:    1,
+		Coal:     1,
 	})
 
 	// Call SourceCoal directly from City 0
 	cost := env.State.SourceCoal(0, 1, p.ID)
-	
+
 	if cost != 0 {
 		t.Errorf("Expected cost to be 0 (board coal used), got %d", cost)
 	}
@@ -525,7 +525,7 @@ func TestResourceOwnership(t *testing.T) {
 	env := NewEnv(2)
 	p := env.State.Players[env.State.Active]
 	opponentID := PlayerId(1)
-	
+
 	env.State.Board = &MapGraph{
 		Cities: []City{
 			{ID: 0, Name: "City0"},
@@ -546,25 +546,25 @@ func TestResourceOwnership(t *testing.T) {
 
 	// Provide coal in City 1 (Opponent)
 	env.State.Industries = append(env.State.Industries, &TokenState{
-		Owner:     opponentID,
-		CityID:    1,
-		Industry:  CoalMineType,
-		Level:     1,
-		Coal:      1,
+		Owner:    opponentID,
+		CityID:   1,
+		Industry: CoalMineType,
+		Level:    1,
+		Coal:     1,
 	})
 
 	// Provide coal in City 2 (Player)
 	env.State.Industries = append(env.State.Industries, &TokenState{
-		Owner:     p.ID,
-		CityID:    2,
-		Industry:  CoalMineType,
-		Level:     1,
-		Coal:      1,
+		Owner:    p.ID,
+		CityID:   2,
+		Industry: CoalMineType,
+		Level:    1,
+		Coal:     1,
 	})
 
 	// Call SourceCoal directly from City 0
 	cost := env.State.SourceCoal(0, 1, p.ID)
-	
+
 	if cost != 0 {
 		t.Errorf("Expected cost to be 0 (board coal used), got %d", cost)
 	}
@@ -581,12 +581,12 @@ func TestResourceOwnership(t *testing.T) {
 func TestRailEraLevel1Restriction(t *testing.T) {
 	env := NewEnv(2)
 	p := env.State.Players[env.State.Active]
-	
+
 	env.State.Board = &MapGraph{
 		Cities: []City{
 			{
-				ID:   0,
-				Name: "City0",
+				ID:         0,
+				Name:       "City0",
 				BuildSlots: [][]IndustryType{{CottonType}},
 			},
 		},

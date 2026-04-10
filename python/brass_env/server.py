@@ -3,6 +3,7 @@ import time
 import requests
 from pathlib import Path
 
+
 def is_server_running(url="http://localhost:8765"):
     """Check if the Brass engine server is responding to health checks."""
     try:
@@ -12,13 +13,14 @@ def is_server_running(url="http://localhost:8765"):
     except Exception:
         return False
 
+
 def ensure_server(root_path: Path):
     """
     Checks if the server is running. If not, starts it.
-    
+
     Args:
         root_path: Path to the root of the brass project (where /server exists)
-        
+
     Returns:
         The subprocess.Popen object if the server was started by this call,
         or None if it was already running.
@@ -32,7 +34,7 @@ def ensure_server(root_path: Path):
         cmd = [str(binary)]
     else:
         print("Pre-built server not found — using `go run ./server` (slower startup).")
-        print(f"  Build with:  go build -o server\\brass_server.exe ./server")
+        print("  Build with:  go build -o server\\brass_server.exe ./server")
         cmd = ["go", "run", "./server"]
 
     proc = subprocess.Popen(
@@ -51,11 +53,11 @@ def ensure_server(root_path: Path):
             raise RuntimeError(
                 f"Server exited unexpectedly:\n{out.decode(errors='replace')}"
             )
-        
+
         if is_server_running():
             print(" ready.")
             return proc
-            
+
         print(".", end="", flush=True)
         time.sleep(0.5)
 

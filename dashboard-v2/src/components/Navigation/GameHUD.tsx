@@ -1,7 +1,6 @@
 import React from 'react';
-import { motion } from 'framer-motion';
-import { Coins, TrendingUp, Landmark, Package } from 'lucide-react';
-import type { EngineState } from '../../types';
+import { Coins, TrendingUp } from 'lucide-react';
+import type { EngineState, Market } from '../../types';
 import { cn } from '../../utils';
 
 interface GameHUDProps {
@@ -13,12 +12,11 @@ export const GameHUD: React.FC<GameHUDProps> = ({ currentState }) => {
 
   const { players, coal_market, iron_market, round_counter, epoch, deck } = currentState;
   const INDUSTRY_NAMES = ["Cotton", "Coal", "Iron", "Pottery", "Goods", "Beer"];
-  const AUDIT_SOURCES = ["Links", ...INDUSTRY_NAMES];
 
   return (
     <div className="absolute top-4 inset-x-4 z-30 pointer-events-none">
       <div className="flex justify-between items-start gap-4">
-        
+
         {/* Left Control Column: Clock & Markets */}
         <div className="flex flex-col gap-3 pointer-events-auto">
           <div className="flex gap-3">
@@ -58,7 +56,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({ currentState }) => {
                 </div>
                 <div className={cn("w-2 h-2 rounded-full animate-pulse", pId === 0 ? "bg-violet-500" : "bg-pink-500")} />
               </div>
-              
+
               <div className="grid grid-cols-2 gap-x-3 gap-y-2 mb-3">
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-1 text-slate-500">
@@ -89,10 +87,6 @@ export const GameHUD: React.FC<GameHUDProps> = ({ currentState }) => {
                     </div>
 
                     {INDUSTRY_NAMES.map(ind => {
-                      const count = p.scoring_breakdown?.[ind] || 
-                                   (ind === "Industries" ? p.vp_audit_industries : 0) || 
-                                   (ind === "Cotton" && !p.scoring_breakdown?.["Industries"] ? p.vp_audit_industries : 0); // Heuristic if engine only gives aggregate
-                      
                       // Actually, let's use the actual breakdown if it exists, but the user specifically wants projected.
                       // If p.scoring_breakdown is empty, we only have aggregate 'vp_audit_industries'.
                       // We'll show the aggregate under 'Industries' and 0 for specific types unless finalized.
@@ -104,7 +98,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({ currentState }) => {
                         </div>
                       );
                     })}
-                    
+
                     {/* Aggregate for Industries Projection */}
                     {(!p.scoring_breakdown || Object.keys(p.scoring_breakdown).length === 0) && (
                        <div className="flex justify-between items-center text-[8px] bg-white/5 px-1 rounded">
@@ -131,15 +125,15 @@ export const GameHUD: React.FC<GameHUDProps> = ({ currentState }) => {
 
                     const isWild = card.type === 2 || card.type === 3;
                     const isLoc = card.type === 1 || card.type === 3;
-                    
+
                     const indName = INDUSTRY_NAMES[card.industry] || "Any";
                     const cityName = currentState.board.Cities.find(c => c.ID === card.city_id)?.Name || "Any";
-                    const tooltip = isWild 
-                      ? (isLoc ? "Wild Location" : "Wild Industry") 
+                    const tooltip = isWild
+                      ? (isLoc ? "Wild Location" : "Wild Industry")
                       : (isLoc ? `Location: ${cityName}` : `Industry: ${indName}`);
 
                     return (
-                      <div 
+                      <div
                         key={i} title={tooltip}
                         className={cn(
                           "w-5 h-7 rounded shrink-0 flex items-center justify-center text-[9px] font-black border border-white/10 shadow-lg cursor-help transition-transform hover:scale-110",
@@ -160,7 +154,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({ currentState }) => {
   );
 };
 
-const MarketCard = ({ label, market, color, icon, isWide }: { label: string, market: any, color: string, icon: string, isWide?: boolean }) => (
+const MarketCard = ({ label, market, color, icon, isWide }: { label: string, market: Market, color: string, icon: string, isWide?: boolean }) => (
   <div className={cn("p-2.5 rounded-2xl border border-white/5 backdrop-blur-xl shadow-2xl", color, isWide ? "w-full" : "min-w-[140px]")}>
     <div className="flex items-center gap-1.5 mb-1.5 opacity-60">
       <span className="text-[9px] font-black text-white/50 uppercase tracking-widest">{label}</span>
@@ -178,10 +172,4 @@ const MarketCard = ({ label, market, color, icon, isWide }: { label: string, mar
       ))}
     </div>
   </div>
-);
-
-const TrophyIcon = ({ className }: { className?: string }) => (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" /><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" /><path d="M4 22h16" /><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" /><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" /><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
-    </svg>
 );

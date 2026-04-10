@@ -37,24 +37,24 @@ const (
 // ─── Structs ──────────────────────────────────────────────────────────────────
 
 type PlayerState struct {
-	ID          PlayerId	`json:"id"`
-	Money       int			`json:"money"`
-	IncomeLevel int			`json:"income_level"`
-	Income      int			`json:"income"`
-	AmountSpent int			`json:"amount_spent"`
-	VP          int			`json:"vp"`
-	Hand        []Card		`json:"hand"`
-	FreeDevelopments int	`json:"free_developments"`
+	ID               PlayerId `json:"id"`
+	Money            int      `json:"money"`
+	IncomeLevel      int      `json:"income_level"`
+	Income           int      `json:"income"`
+	AmountSpent      int      `json:"amount_spent"`
+	VP               int      `json:"vp"`
+	Hand             []Card   `json:"hand"`
+	FreeDevelopments int      `json:"free_developments"`
 
 	// Player Board tracking
-	CurrentLevel map[IndustryType]int	`json:"current_level"`
-	TokensLeft   map[IndustryType]int	`json:"tokens_left"`
+	CurrentLevel map[IndustryType]int `json:"current_level"`
+	TokensLeft   map[IndustryType]int `json:"tokens_left"`
 
 	// Diagnostic/Audit counters
-	VPAuditIndustries      int	`json:"vp_audit_industries"`
-	VPAuditLinks           int	`json:"vp_audit_links"`
-	ConsumedOpponentCoal   int	`json:"consumed_opponent_coal"`
-	ConsumedOpponentIron   int	`json:"consumed_opponent_iron"`
+	VPAuditIndustries    int `json:"vp_audit_industries"`
+	VPAuditLinks         int `json:"vp_audit_links"`
+	ConsumedOpponentCoal int `json:"consumed_opponent_coal"`
+	ConsumedOpponentIron int `json:"consumed_opponent_iron"`
 
 	// Scoring breakdown (source -> points)
 	ScoringBreakdown map[string]int `json:"scoring_breakdown"`
@@ -79,7 +79,7 @@ type StepMetadata struct {
 	CardsSpent   []Card `json:"cards_spent"`
 	CityID       int    `json:"city_id"`
 	RouteID      int    `json:"route_id"`
-	
+
 	// Granular scoring added during transitions or specific actions
 	ScoreEvents  []ScoreEvent `json:"score_events"`
 	ProjectedVPs []int        `json:"projected_vps"`
@@ -87,45 +87,45 @@ type StepMetadata struct {
 
 type TokenState struct {
 	// Built industries tracking
-	Owner     PlayerId		`json:"owner"`
-	CityID    CityID		`json:"city_id"`
-	SlotIndex int			`json:"slot_idx"`
-	Industry  IndustryType	`json:"industry"`
-	Level     int			`json:"level"`
-	Flipped   bool			`json:"flipped"`
-	Coal      int			`json:"coal"`
-	Iron      int			`json:"iron"`
-	Beer      int			`json:"beer"`
+	Owner     PlayerId     `json:"owner"`
+	CityID    CityID       `json:"city_id"`
+	SlotIndex int          `json:"slot_idx"`
+	Industry  IndustryType `json:"industry"`
+	Level     int          `json:"level"`
+	Flipped   bool         `json:"flipped"`
+	Coal      int          `json:"coal"`
+	Iron      int          `json:"iron"`
+	Beer      int          `json:"beer"`
 }
 
 type MerchantSlot struct {
-	CityID        CityID		`json:"city_id"`
-	Tile          MerchantTile	`json:"tile"`
-	AvailableBeer int			`json:"available_beer"`
+	CityID        CityID       `json:"city_id"`
+	Tile          MerchantTile `json:"tile"`
+	AvailableBeer int          `json:"available_beer"`
 }
 
 type GameState struct {
-	NumPlayers int				`json:"num_players"`
-	Epoch      Epoch			`json:"epoch"`
-	Players    []*PlayerState	`json:"players"`
-	Board      *MapGraph		`json:"board"`
-	Deck       []Card			`json:"deck"`
-	Discard    []Card			`json:"discard"`
-	Active     PlayerId			`json:"active"`
-	Industries []*TokenState	`json:"industries"`
-	Merchants  []MerchantSlot	`json:"merchants"`
-	CoalMarket Market			`json:"coal_market"`
-	IronMarket Market			`json:"iron_market"`
+	NumPlayers int            `json:"num_players"`
+	Epoch      Epoch          `json:"epoch"`
+	Players    []*PlayerState `json:"players"`
+	Board      *MapGraph      `json:"board"`
+	Deck       []Card         `json:"deck"`
+	Discard    []Card         `json:"discard"`
+	Active     PlayerId       `json:"active"`
+	Industries []*TokenState  `json:"industries"`
+	Merchants  []MerchantSlot `json:"merchants"`
+	CoalMarket Market         `json:"coal_market"`
+	IronMarket Market         `json:"iron_market"`
 
 	// Wild card supply tracking (Birmingham deck area)
-	WildLocationSupply int	`json:"wild_location_supply"`
-	WildIndustrySupply int	`json:"wild_industry_supply"`
+	WildLocationSupply int `json:"wild_location_supply"`
+	WildIndustrySupply int `json:"wild_industry_supply"`
 
 	// Turn and Round Tracking
-	TurnOrder          []PlayerId	`json:"turn_order"`
-	CurrentTurnIdx     int			`json:"current_turn_idx"`
-	ActionsRemaining   int			`json:"actions_remaining"`
-	RoundCounter       int			`json:"round_counter"`
+	TurnOrder        []PlayerId `json:"turn_order"`
+	CurrentTurnIdx   int        `json:"current_turn_idx"`
+	ActionsRemaining int        `json:"actions_remaining"`
+	RoundCounter     int        `json:"round_counter"`
 
 	// Link tracking (moved from MapGraph for purity)
 	RouteBuilt  []bool     `json:"route_built"`
@@ -133,10 +133,10 @@ type GameState struct {
 
 	// Per-env isolated RNG
 	// and guarantee unique shuffles even when many envs are created concurrently.
-	Rng *rand.Rand	`json:"-"`
+	Rng *rand.Rand `json:"-"`
 
 	// GameOver is set to true after the Rail Era is fully exhausted and final scoring is complete.
-	GameOver bool	`json:"game_over"`
+	GameOver bool `json:"game_over"`
 
 	// BFS scratch — pre-allocated to eliminate map/slice allocations in hot-path graph traversals.
 	// Uses a generation counter: a city is "visited" if bfsVisited[cityID] == bfsGen.
@@ -151,15 +151,15 @@ type GameState struct {
 
 func NewGameState(numPlayers int, board *MapGraph, rng *rand.Rand) *GameState {
 	gs := &GameState{
-		NumPlayers: numPlayers,
-		Epoch:      CanalEra,
-		Board:      board,
-		Players:    make([]*PlayerState, numPlayers),
-		Industries: make([]*TokenState, 0),
-		Merchants:  make([]MerchantSlot, 9),
-		TurnOrder:  make([]PlayerId, numPlayers),
-		Rng:        rng,
-		RouteBuilt: make([]bool, len(board.Routes)),
+		NumPlayers:  numPlayers,
+		Epoch:       CanalEra,
+		Board:       board,
+		Players:     make([]*PlayerState, numPlayers),
+		Industries:  make([]*TokenState, 0),
+		Merchants:   make([]MerchantSlot, 9),
+		TurnOrder:   make([]PlayerId, numPlayers),
+		Rng:         rng,
+		RouteBuilt:  make([]bool, len(board.Routes)),
 		RouteOwners: make([]PlayerId, len(board.Routes)),
 	}
 
@@ -176,13 +176,13 @@ func NewGameState(numPlayers int, board *MapGraph, rng *rand.Rand) *GameState {
 	for i := 0; i < numPlayers; i++ {
 		gs.TurnOrder[i] = PlayerId(i)
 		gs.Players[i] = &PlayerState{
-			ID:           PlayerId(i),
-			Money:        17, // Starting money in Brass
-			IncomeLevel:  10, // Starting income track position (gives £0)
-			Income:       0,
-			VP:           0,
-			CurrentLevel: make(map[IndustryType]int),
-			TokensLeft:   make(map[IndustryType]int),
+			ID:               PlayerId(i),
+			Money:            17, // Starting money in Brass
+			IncomeLevel:      10, // Starting income track position (gives £0)
+			Income:           0,
+			VP:               0,
+			CurrentLevel:     make(map[IndustryType]int),
+			TokensLeft:       make(map[IndustryType]int),
 			ScoringBreakdown: make(map[string]int),
 		}
 
