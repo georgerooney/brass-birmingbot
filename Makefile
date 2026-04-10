@@ -18,6 +18,11 @@ build:
 	@echo "Building Go engine..."
 	go build -o main.exe main.go
 
+build-lib:
+	@echo "Building Go shared library..."
+	go build -buildmode=c-shared -o python/brass_env/brass_engine.so ./engine/cshared
+
+
 install:
 	@echo "Installing all dependencies..."
 	@echo "1/2: Python (uv sync)..."

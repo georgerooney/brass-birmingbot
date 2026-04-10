@@ -10,7 +10,6 @@ The system is built as a multi-layer stack to balance high-speed simulation with
 graph TD
     subgraph "Go Core"
         Engine["engine/ (Simulation)"]
-        Server["server/ (HTTP API)"]
     end
 
     subgraph "Python Layer"
@@ -23,8 +22,7 @@ graph TD
         Traces["JSON Traces"]
     end
 
-    Engine --> Server
-    Server -- "Binary Tensors" --> Env
+    Engine -- "C-bindings (.so)" --> Env
     Env --> Training
     Training -- "Evaluation" --> Traces
     Traces --> Dashboard
@@ -38,10 +36,10 @@ The core game simulator written in Go for performance.
 - **Ego-Centric Observations**: Generates flat tensors from the perspective of the active player.
 - **Action Masking**: High-performance bit-masking to guide agents.
 
-### **[Server (Go Gateway)](./server)**
-A low-latency HTTP bridge that exposes the engine to Python.
-- **Binary/Base64 Serialization**: Efficient transmission of state tensors and action masks.
-- **Environment Pooling**: Handles concurrent game instances for parallel training.
+### **[C-Bindings (Shared Library)](./engine/cshared)**
+High-performance bridge exposing Go engine to Python via `ctypes`.
+- **Direct Memory Access**: Efficient transmission of state tensors and action masks.
+- **Environment Pooling**: Handled in-process with Go mutexes.
 
 ### **[Python RL Pipeline](./python)**
 State-of-the-art RL training using `stable-baselines3`.
@@ -61,10 +59,9 @@ A "Brass Vision" replay tool for debugging and strategy review.
     ```bash
     make install
     ```
-2.  **Start Engine Server**:
+2.  **Build Shared Library**:
     ```bash
-    make build
-    ./main.exe
+    make build-lib
     ```
 3.  **Training**:
     ```bash
