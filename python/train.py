@@ -14,6 +14,7 @@ from collections import deque
 from datetime import datetime
 from pathlib import Path
 import multiprocessing
+from dotenv import load_dotenv
 
 import numpy as np
 
@@ -34,7 +35,7 @@ from config import (
     PPO_ENT_COEF,
     NET_ARCH,
 )
-from utils import DiagnosticCallback, ProfilingCallback
+from utils import DiagnosticCallback, ProfilingCallback, GCSCheckpointCallback
 import torch as th
 import torch.nn as nn
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
@@ -202,6 +203,7 @@ def main() -> None:
     import torch as th
     from sb3_contrib import MaskablePPO
 
+    load_dotenv(Path(__file__).parent.parent / ".env.local")
     args = get_args()
 
     # Setup Directory Structure
@@ -302,13 +304,26 @@ def main() -> None:
         print()
 
         # Save a checkpoint every 250k steps
-        checkpoint_callback = CheckpointCallback(
-            save_freq=max(250_000 // args.envs, 1),
-            save_path=str(checkpoint_dir),
-            name_prefix="brass_ppo",
-            save_replay_buffer=False,
-            save_vecnormalize=True,
-        )
+        import os
+        bucket_name = os.environ.get("GCS_BUCKET_NAME")
+        if bucket_name:
+            print(f"GCS Integration enabled. Bucket: {bucket_name}")
+            checkpoint_callback = GCSCheckpointCallback(
+                save_freq=max(250_000 // args.envs, 1),
+                save_path=str(checkpoint_dir),
+                name_prefix="brass_ppo",
+                bucket_name=bucket_name,
+                save_vecnormalize=True,
+            )
+        else:
+            print("GCS Integration disabled (GCS_BUCKET_NAME not set in .env.local).")
+            checkpoint_callback = CheckpointCallback(
+                save_freq=max(250_000 // args.envs, 1),
+                save_path=str(checkpoint_dir),
+                name_prefix="brass_ppo",
+                save_replay_buffer=False,
+                save_vecnormalize=True,
+            )
 
         diagnostic_callback = DiagnosticCallback(
             save_freq=max(250_000 // args.envs, 1),

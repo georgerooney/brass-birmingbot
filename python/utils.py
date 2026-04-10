@@ -178,3 +178,60 @@ class ProfilingCallback(BaseCallback):
                 )
 
         return True
+
+
+class GCSCheckpointCallback(BaseCallback):
+    def __init__(
+        self,
+        save_freq: int,
+        save_path: str,
+        name_prefix: str,
+        bucket_name: str,
+        save_vecnormalize: bool = False,
+        verbose: int = 0,
+    ):
+        super().__init__(verbose)
+        self.save_freq = save_freq
+        self.save_path = save_path
+        self.name_prefix = name_prefix
+        self.bucket_name = bucket_name
+        self.save_vecnormalize = save_vecnormalize
+
+    def _on_step(self) -> bool:
+        if self.n_calls % self.save_freq == 0:
+            path = os.path.join(
+                self.save_path,
+                f"{self.name_prefix}_{self.num_timesteps}_steps.zip",
+            )
+            self.model.save(path)
+            print(f"Saved checkpoint to {path}")
+
+            from gcs_utils import upload_file
+
+            gcs_path = f"checkpoints/{os.path.basename(path)}"
+            p = multiprocessing.Process(
+                target=upload_file, args=(path, self.bucket_name, gcs_path)
+            )
+            p.start()
+
+            if self.save_vecnormalize and self.training_env is not None:
+                from stable_baselines3.common.vec_env import VecNormalize
+
+                if isinstance(self.training_env, VecNormalize):
+                    vec_normalize_path = os.path.join(
+                        self.save_path,
+                        f"{self.name_prefix}_vecnormalize_{self.num_timesteps}.pkl",
+                    )
+                    self.training_env.save(vec_normalize_path)
+                    print(f"Saved VecNormalize to {vec_normalize_path}")
+
+                    gcs_vn_path = (
+                        f"checkpoints/{os.path.basename(vec_normalize_path)}"
+                    )
+                    p_vn = multiprocessing.Process(
+                        target=upload_file,
+                        args=(vec_normalize_path, self.bucket_name, gcs_vn_path),
+                    )
+                    p_vn.start()
+
+        return True
