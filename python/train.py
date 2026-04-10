@@ -54,70 +54,7 @@ def make_env_fn(rank: int, num_players: int):
         return env
     return _init
 
-# --- Neural Architecture v2.0 (Expert Compatibility Matrix) ---
-
-class BrassExpertExtractor(BaseFeaturesExtractor):
-    """Separates the flat observation into Board and Hand components."""
-    def __init__(self, observation_space, features_dim: int = 1024, board_size: int = 2204):
-        super().__init__(observation_space, features_dim)
-        # Slices (must match engine/observation.go)
-        self.board_size = board_size
-        assert observation_space.shape[0] >= self.board_size, (
-            f"Observation size {observation_space.shape[0]} is smaller than board_size {self.board_size}"
-        )
-        
-        # Board Encoder: Reduced capacity for faster training
-        self.board_encoder = nn.Sequential(
-            nn.Linear(self.board_size, 512),
-            nn.ReLU(),
-            nn.Linear(512, features_dim),
-            nn.ReLU(),
-        )
-
-    def forward(self, observations: th.Tensor) -> th.Tensor:
-        # Narrow focus: strategic board state only
-        board_obs = observations[:, :self.board_size]
-        return self.board_encoder(board_obs)
-
-class BrassExpertPolicy(MaskableActorCriticPolicy):
-    """Simplified policy head for purely strategic actions."""
-    def _get_action_logits(self, latent_pi: th.Tensor) -> th.Tensor:
-        # Standard linear head for the flattened 886 strategic action space
-        return self.action_net(latent_pi)
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Re-allocate the action_net to match the actual action space size
-        self.action_net = nn.Linear(self.mlp_extractor.latent_dim_pi, self.action_space.n)
-        
-        # Orthogonal init for stable start
-        nn.init.orthogonal_(self.action_net.weight, gain=0.01)
-        nn.init.constant_(self.action_net.bias, 0)
-
-    def forward(self, obs: th.Tensor, deterministic: bool = False, action_masks: th.Tensor = None):
-        features = self.extract_features(obs)
-        latent_pi, latent_vf = self.mlp_extractor(features)
-        
-        # Generate distribution (which applies our dot-product logic)
-        distribution = self._get_action_distribution_from_latent(latent_pi)
-        if action_masks is not None:
-            distribution.apply_masking(action_masks)
-            
-        # Values from the standard critic branch
-        values = self.value_net(latent_vf)
-        
-        # Sample actions
-        actions = distribution.get_actions(deterministic=deterministic)
-        log_prob = distribution.log_prob(actions)
-        
-        return actions, values, log_prob
-
-    def _get_action_distribution_from_latent(self, latent_pi: th.Tensor):
-        # latent_pi is the output of the mlp_extractor (pi branch)
-        # For simplicity, we assume the mlp_extractor PI branch preserves our feature layout
-        # or we just extract from features directly since the board context is what matters.
-        logits = self._get_action_logits(latent_pi) # If PI branch = Identity, this works
-        return self.action_dist.proba_distribution(action_logits=logits)
+# Using standard MlpPolicy from sb3-contrib for maximum stability
 
 # --- Callbacks ---
 
@@ -239,7 +176,7 @@ def run_diagnostics(model_path: str, num_episodes: int, log_file: str, train_ste
                 masks = env.action_masks()
                 valid_actions = [i for i, m in enumerate(masks) if m]
                 for a in valid_actions:
-                    if action_names[a].startswith("Build Link"):
+                    if action_names[a].startswith("Network"):
                         valid_link_count += 1
                 
                 # Extract probabilities for links
@@ -248,7 +185,7 @@ def run_diagnostics(model_path: str, num_episodes: int, log_file: str, train_ste
                     distribution = model.policy.get_distribution(obs_tensor)
                     probs = distribution.distribution.probs.detach().cpu().numpy()[0]
                 
-                link_indices = [i for i, name in enumerate(action_names) if name.startswith("Build Link")]
+                link_indices = [i for i, name in enumerate(action_names) if name.startswith("Network")]
                 valid_link_indices = [i for i in link_indices if masks[i]]
                 
                 if len(valid_link_indices) > 0:
@@ -334,7 +271,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Train Brass Birmingham PPO agent")
     parser.add_argument("--envs",    type=int,   default=32,      help="Parallel envs")
     parser.add_argument("--steps",   type=int,   default=10_000_000, help="Total timesteps")
-    parser.add_argument("--lr", type=float, default=0.0005, help="Learning rate (default: 5e-4)")
+    parser.add_argument("--lr",      type=float, default=0.0003,      help="Learning rate (default: 3e-4)")
+    parser.add_argument("--batch-size", type=int, default=4096,     help="Minibatch size")
+    parser.add_argument("--n-steps", type=int,   default=1024,     help="Rollout steps per env")
     parser.add_argument("--players", type=int,   default=2,       help="Players per game")
     parser.add_argument("--load",    type=str,   default=None,    help="Path to existing .zip model to resume from")
     parser.add_argument("--run-name", type=str,  default=None,    help="Custom name for this run")
@@ -362,15 +301,11 @@ def main() -> None:
         board_size = vec_env.get_attr('board_size')[0]
         print(f"Queried board size: {board_size}")
 
-        # Simplified Network configuration (Reduced for faster learning)
-        features_dim = 256
         policy_kwargs = dict(
-            features_extractor_class=BrassExpertExtractor,
-            features_extractor_kwargs=dict(features_dim=features_dim, board_size=board_size),
-            net_arch=dict(pi=[256, 256], vf=[256, 128]), 
+            net_arch=dict(pi=[512, 256], vf=[512, 256]),
         )
 
-        n_steps = 256  # rollout length (total batch = n_steps × n_envs)
+        # n_steps = 1024 (rollout length, total batch = n_steps × n_envs)
         
         # Instantiate Callbacks
         # Curriculum Tracking (phases out dense rewards after performance threshold)
@@ -392,17 +327,17 @@ def main() -> None:
         else:
             print("Creating new PPO model.")
             model = MaskablePPO(
-                BrassExpertPolicy,
+                "MlpPolicy",
                 vec_env,
-                n_steps=n_steps,
-                batch_size=256,        # Tighter batch for faster convergence
-                n_epochs=10,           
-                gamma=0.99,            # Strategic focus (reverted from 0.997)
-                gae_lambda=0.95,       
+                n_steps=256,
+                batch_size=256,
+                n_epochs=4,
+                gamma=0.99,
+                gae_lambda=0.95,
                 clip_range=0.2,
-                target_kl=0.015,       
-                ent_coef=0.03,         # Increased entropy for exploration
-                learning_rate=lr_schedule,
+                target_kl=0.03,
+                ent_coef=0.05,         # Increased entropy for exploration in large discrete space
+                learning_rate=args.lr,
                 policy_kwargs=policy_kwargs,
                 verbose=1,
                 device="cuda" if th.cuda.is_available() else "cpu",
@@ -412,7 +347,7 @@ def main() -> None:
         print(f"Starting training: {args.steps:,} total timesteps")
         print(f"  obs_size={model.observation_space.shape[0]}")
         print(f"  action_size={model.action_space.n}")
-        print(f"  batch={args.envs * n_steps} (n_envs × n_steps)")
+        print(f"  batch={args.envs * args.n_steps} (n_envs × args.n_steps)")
         print(f"  run_dir={run_dir}")
         print()
 

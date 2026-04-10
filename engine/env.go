@@ -134,8 +134,8 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 		player.IncomeLevel = newLevel
 		player.SyncIncome()
 
-		// Reward: Small positive reward for action
-		reward += 0.05 * denseRewardScale
+		// Reward: Very small positive reward for taking a loan (was 0.05)
+		reward += 0.01 * denseRewardScale
 
 		// Heuristic: Discard least flexible cards for loan (Industry > Location > Wild)
 		// Spend chosen card
@@ -170,7 +170,7 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 			e.LastMetadata.CardsSpent = []Card{}
 		}
 		
-		reward -= 0.1 * denseRewardScale
+		reward -= 0.02 * denseRewardScale
 
 	case ActionScout:
 		// Discard 3
@@ -305,8 +305,8 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 			e.State.FlipIndustry(len(e.State.Industries) - 1)
 		}
 
-		// Reward: Stronger positive reward for building to encourage exploration
-		reward += 0.15 * denseRewardScale
+		// Reward: Small token placement reward (scaled down since VP delta is now 0.5)
+		reward += 0.05 * denseRewardScale
 		moneySpent := moneyBefore - player.Money
 		if moneySpent > 0 {
 			reward += (float64(moneySpent) * 0.0) * denseRewardScale
@@ -342,10 +342,9 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 		// Reward: Removed for purification
 		reward += 0.0 * denseRewardScale
 
-		// Reward: Positive reward for connecting to a merchant!
 		if (!wasConnectedA && e.State.IsMerchantConnected(route.CityA)) || 
 		   (!wasConnectedB && e.State.IsMerchantConnected(route.CityB)) {
-			reward += 0.15 * denseRewardScale
+			reward += 0.05 * denseRewardScale
 		}
 
 		// Reward: Removed for purification
@@ -533,12 +532,12 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 	pAfter := e.State.Players[active]
 	
 	// Dense reward uses AuditVP (immediate boosts for flips and links)
-	// v2.7: High-Contrast Scoring Signal (1 VP = 0.5 reward)
+	// v2.7: High-Contrast Scoring Signal (1 VP = 0.5 reward, 1 Income = 0.1 reward)
 	vpDelta := (pAfter.VPAuditIndustries - prevAuditIndustries) + 
                (pAfter.VPAuditLinks - prevAuditLinks)
 	incomeDelta := pAfter.IncomeLevel - prevIncome
 
-	reward += (float64(vpDelta)*0.05 + float64(incomeDelta)*0.01) * denseRewardScale
+	reward += (float64(vpDelta)*0.5 + float64(incomeDelta)*0.1) * denseRewardScale
 
 	// Safety Clamp: Ensure total reward per step is in [-1.0, 1.0]
 	if reward > 1.0 {
