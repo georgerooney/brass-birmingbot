@@ -359,7 +359,7 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 		c2cost := e.State.SourceCoal(e.State.Board.Routes[r2ID].CityA, 1, e.State.Active)
 
 		// 4. Source Beer (Breweries ONLY for links)
-		e.State.SourceBeer(e.State.Board.Routes[r2ID].CityA, e.State.Active, true, false)
+		e.State.SourceBeer(e.State.Board.Routes[r2ID].CityA, e.State.Active, true, false, true)
 		
 		player.Money -= (c1cost + c2cost)
 		e.LastMetadata.CoalConsumed = 2
@@ -441,7 +441,7 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 						}
 					} else {
 						// SourceBeer handled internally by identifying network/owner beer
-						e.State.SourceBeer(tok.CityID, e.State.Active, true, true)
+						e.State.SourceBeer(tok.CityID, e.State.Active, true, true, false)
 					}
 					e.State.FlipIndustry(i)
 					flippedAny = true

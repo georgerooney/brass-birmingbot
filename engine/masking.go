@@ -135,6 +135,14 @@ func (env *Env) isValidActionWithCard(p *PlayerState, action Action, cardIdx int
 			return false
 		}
 
+		// Era Restrictions
+		if env.State.Epoch == CanalEra && route.Type == "rail_only" {
+			return false
+		}
+		if env.State.Epoch == RailEra && route.Type == "canal_only" {
+			return false
+		}
+
 		// 2. Money and Coal Check
 		costMoney := 3
 		if env.State.Epoch == RailEra {
@@ -166,6 +174,10 @@ func (env *Env) isValidActionWithCard(p *PlayerState, action Action, cardIdx int
 		}
 		// O(1): both routes must be unbuilt
 		if env.State.Board.Routes[action.RouteID].IsBuilt || env.State.Board.Routes[action.RouteID2].IsBuilt {
+			return false
+		}
+		// Era Restrictions: neither route can be canal_only in Rail Era
+		if env.State.Board.Routes[action.RouteID].Type == "canal_only" || env.State.Board.Routes[action.RouteID2].Type == "canal_only" {
 			return false
 		}
 		// O(adj_degree), no allocation: R1 must touch the player's current network.
@@ -227,7 +239,7 @@ func (env *Env) isValidActionWithCard(p *PlayerState, action Action, cardIdx int
 				for midx, m := range env.State.Merchants {
 					if env.State.CanSellToMerchant(tok, midx) {
 						// Beer must be available (merchant beer, opponent brewery, or own brewery)
-						if m.AvailableBeer > 0 || env.State.PredictBeerPossible(tok.CityID, p.ID, true, true) {
+						if m.AvailableBeer > 0 || env.State.PredictBeerPossible(tok.CityID, p.ID, true, true, false) {
 							return true
 						}
 					}
@@ -248,8 +260,9 @@ func (env *Env) isValidActionWithCard(p *PlayerState, action Action, cardIdx int
 		return false
 
 	case ActionLoan:
-		// Rule: Can take loan if income level index permits (cannot drop below -10 which is index 0)
-		if p.IncomeLevel >= 0 && len(p.Hand) > 0 {
+		// Rule: Cannot take a loan if it drops your income level below -10.
+		// Taking a loan drops income by 3 levels (not index steps).
+		if IncomeTrackMap[p.IncomeLevel]-3 >= -10 && len(p.Hand) > 0 {
 			return true
 		}
 		return false

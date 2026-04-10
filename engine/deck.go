@@ -116,6 +116,13 @@ func (gs *GameState) InitializeDeck() {
 	}
 
 	gs.Deck = deck
+	
+	// Remove 1 card to discard pile at start of game
+	if len(gs.Deck) > 0 {
+		gs.Discard = append(gs.Discard, gs.Deck[len(gs.Deck)-1])
+		gs.Deck = gs.Deck[:len(gs.Deck)-1]
+	}
+
 	for p := 0; p < gs.NumPlayers; p++ {
 		// Allocate a fresh slice per player — assigning gs.Deck[n:] directly would give all
 		// players the same backing array, so mutating one hand would corrupt the others.

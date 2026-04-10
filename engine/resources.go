@@ -275,8 +275,8 @@ func (gs *GameState) PredictIronCost(count int, playerID PlayerId) int {
 // SourceBeer attempts to consume 1 beer according to the priority:
 // 1. Merchant Beer (only if atCity is the merchant city, and includeMerchants is true)
 // 2. Opponent's Brewery (Connected)
-// 3. Active Player's Brewery (No connection required)
-func (gs *GameState) SourceBeer(atCity CityID, playerID PlayerId, requireConnection bool, includeMerchants bool) bool {
+// 3. Active Player's Brewery (No connection required unless strictConnection is true)
+func (gs *GameState) SourceBeer(atCity CityID, playerID PlayerId, requireConnection bool, includeMerchants bool, strictConnection bool) bool {
 	if includeMerchants {
 		for i, m := range gs.Merchants {
 			if m.CityID == atCity && m.AvailableBeer > 0 {
@@ -300,15 +300,17 @@ func (gs *GameState) SourceBeer(atCity CityID, playerID PlayerId, requireConnect
 		}
 	}
 
-	// Own breweries (no connection required)
+	// Own breweries (no connection required unless strictConnection is true)
 	for i := range gs.Industries {
 		tok := gs.Industries[i]
 		if tok.Industry == BreweryType && tok.Owner == playerID && tok.Beer > 0 {
-			gs.Industries[i].Beer -= 1
-			if gs.Industries[i].Beer == 0 {
-				gs.FlipIndustry(i)
+			if !strictConnection || gs.HasConnectionFast(atCity, tok.CityID) {
+				gs.Industries[i].Beer -= 1
+				if gs.Industries[i].Beer == 0 {
+					gs.FlipIndustry(i)
+				}
+				return true
 			}
-			return true
 		}
 	}
 
@@ -334,7 +336,7 @@ func (gs *GameState) HasNetworkBeer(atCity CityID, playerID PlayerId, ownOnly bo
 }
 
 // PredictBeerPossible checks if a beer is available for consumption without state change.
-func (gs *GameState) PredictBeerPossible(atCity CityID, playerID PlayerId, requireConnection bool, includeMerchants bool) bool {
+func (gs *GameState) PredictBeerPossible(atCity CityID, playerID PlayerId, requireConnection bool, includeMerchants bool, strictConnection bool) bool {
 	if includeMerchants {
 		for _, m := range gs.Merchants {
 			if m.CityID == atCity && m.AvailableBeer > 0 {
@@ -353,7 +355,9 @@ func (gs *GameState) PredictBeerPossible(atCity CityID, playerID PlayerId, requi
 
 	for _, tok := range gs.Industries {
 		if tok.Industry == BreweryType && tok.Owner == playerID && tok.Beer > 0 {
-			return true
+			if !strictConnection || gs.HasConnectionFast(atCity, tok.CityID) {
+				return true
+			}
 		}
 	}
 

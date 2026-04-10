@@ -104,6 +104,21 @@ func (gs *GameState) IsInNetwork(playerID PlayerId, city CityID) bool {
 	return false
 }
 
+// IsFirstBuild checks if the player has no industries and no routes built.
+func (gs *GameState) IsFirstBuild(playerID PlayerId) bool {
+	for _, ind := range gs.Industries {
+		if ind.Owner == playerID {
+			return false
+		}
+	}
+	for _, r := range gs.Board.Routes {
+		if r.IsBuilt && r.Owner == playerID {
+			return false
+		}
+	}
+	return true
+}
+
 // IsAdjacentToNetwork checks if a route is adjacent to any player presence.
 // Special Rule: If player has NO presence on board, ANY route is valid (first-build exception).
 func (gs *GameState) IsAdjacentToNetwork(routeID int, playerID PlayerId) bool {
@@ -241,18 +256,24 @@ func (gs *GameState) CanBuildDoubleRail(r1, r2 int, playerID PlayerId) bool {
 		return false
 	}
 
-	cost1, possible1 := gs.PredictCoalCost(r1Route.CityA, 1, playerID)
-	if !possible1 {
+	// Find which end of r1 is in network
+	startCity := r1Route.CityA
+	if !gs.IsInNetwork(playerID, startCity) {
+		startCity = r1Route.CityB
+	}
+
+	// Check if we can source 2 coal from startCity
+	cost, possible := gs.PredictCoalCost(startCity, 2, playerID)
+	if !possible {
 		return false
 	}
-	cost2, possible2 := gs.PredictCoalCost(r2Route.CityA, 1, playerID)
-	if !possible2 {
+	
+	// Check if we can source 1 beer from startCity
+	if !gs.PredictBeerPossible(startCity, playerID, true, false, true) {
 		return false
 	}
-	if !gs.PredictBeerPossible(r2Route.CityA, playerID, true, false) {
-		return false
-	}
-	if p.Money < (15 + cost1 + cost2) {
+	
+	if p.Money < (15 + cost) {
 		return false
 	}
 	return true

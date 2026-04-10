@@ -61,8 +61,8 @@ func (gs *GameState) CanCardBeUsedForBuild(cityID CityID, ind IndustryType, pID 
 		return card.CityID == int(cityID)
 	case IndustryCard:
 		// Industry Card: Build that industry in a city you are CONNECTED to.
-		// (Special first-build rule is handled by IsInNetwork or env caller)
-		return card.Industry == ind && gs.IsInNetwork(pID, cityID)
+		// Special Rule: First build does not require network connection.
+		return card.Industry == ind && (gs.IsInNetwork(pID, cityID) || gs.IsFirstBuild(pID))
 	case WildLocationCard:
 		// Wild Location: Build any industry in any city.
 		return true

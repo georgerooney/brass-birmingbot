@@ -150,7 +150,7 @@ func (gs *GameState) PredictSellableIndustries(playerID PlayerId) []int {
 			isPossible := false
 			for midx := range gs.Merchants {
 				if gs.CanSellToMerchant(tok, midx) {
-					if gs.Merchants[midx].AvailableBeer > 0 || gs.PredictBeerPossible(tok.CityID, playerID, true, false) {
+					if gs.Merchants[midx].AvailableBeer > 0 || gs.PredictBeerPossible(tok.CityID, playerID, true, false, false) {
 						isPossible = true
 						break
 					}
