@@ -235,10 +235,10 @@ func FillObservation(gs *GameState, buf []float32) {
 		r := gs.Board.Routes[i]
 		base := ObsMerchEnd + i*ObsRouteWidth
 
-		if r.IsBuilt {
+		if gs.RouteBuilt[i] {
 			buf[base+0] = 1 // built
 			// Owner one-hot (mapped to relative PID)
-			relOwner := (int(r.Owner) - int(gs.Active) + gs.NumPlayers) % gs.NumPlayers
+			relOwner := (int(gs.RouteOwners[i]) - int(gs.Active) + gs.NumPlayers) % gs.NumPlayers
 			if relOwner < ObsMaxPlayers {
 				buf[base+1+relOwner] = 1
 			}
@@ -446,7 +446,7 @@ func (gs *GameState) IsMerchantConnectedForIndustry(city CityID, ind IndustryTyp
 
 		for _, routeID := range gs.Board.Adj[curr] {
 			route := gs.Board.Routes[routeID]
-			if !route.IsBuilt {
+			if !gs.RouteBuilt[routeID] {
 				continue
 			}
 			next := route.CityA
@@ -495,7 +495,7 @@ func (gs *GameState) CalculateEconomicDistances(city CityID, pID PlayerId) (myCo
 
 		for _, routeID := range gs.Board.Adj[curr.city] {
 			r := gs.Board.Routes[routeID]
-			if !r.IsBuilt { continue }
+			if !gs.RouteBuilt[routeID] { continue }
 			next := r.CityA
 			if next == curr.city { next = r.CityB }
 			if gs.bfsVisited[next] != gs.bfsGen {

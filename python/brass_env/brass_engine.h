@@ -92,6 +92,7 @@ extern int32_t BrassNewEnv(int32_t numPlayers);
 extern void BrassReset(int32_t envID);
 extern void BrassFreeEnv(int32_t envID);
 extern void BrassStep(int32_t envID, int32_t actionID, double denseRewardScale, float* rewardOut, int32_t* doneOut);
+extern int BrassGetStepMetadataJSON(int32_t envID, char* bufOut, int maxLen);
 extern int32_t BrassObsSize(void);
 extern int32_t BrassObsSlotEnd(void);
 extern void BrassGetObs(int32_t envID, float* bufOut);

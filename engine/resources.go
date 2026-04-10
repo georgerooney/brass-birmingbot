@@ -77,7 +77,7 @@ func (gs *GameState) PredictCoalCost(startCity CityID, count int, activePlayer P
 
 			for _, routeID := range gs.Board.Adj[curr.city] {
 				route := gs.Board.Routes[routeID]
-				if !route.IsBuilt {
+				if !gs.RouteBuilt[routeID] {
 					continue
 				}
 				next := route.CityA

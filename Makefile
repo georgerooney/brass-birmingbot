@@ -1,9 +1,9 @@
 .PHONY: build train eval dashboard clean help
 
 # Default model path for evaluation
-MODEL_PATH ?= python/runs/ppo_latest/brass_ppo_final.zip
+MODEL_PATH ?= brass_ppo
 EVAL_EPISODES ?= 20
-DASHBOARD_DATA_DIR = dashboard-v2/public/data
+DASHBOARD_DATA_DIR = ../dashboard-v2/public/data
 
 help:
 	@echo "Brass Project Management Commands:"
@@ -36,7 +36,7 @@ train:
 
 eval:
 	@echo "Running evaluation with model: $(MODEL_PATH)"
-	uv run python/test_agent.py --model $(MODEL_PATH) --episodes $(EVAL_EPISODES) --output $(DASHBOARD_DATA_DIR)
+	cd python && uv run --no-sync test_agent.py --model $(MODEL_PATH) --episodes $(EVAL_EPISODES) --output $(DASHBOARD_DATA_DIR)
 
 dashboard:
 	@echo "Launching dashboard..."

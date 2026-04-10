@@ -29,7 +29,7 @@ func NewEnv(numPlayers int) *Env {
 	seed := time.Now().UnixNano() ^ atomic.AddInt64(&envCounter, 1337)
 	rng := rand.New(rand.NewSource(seed))
 	env := &Env{
-		State:     NewGameState(numPlayers, rng),
+		State:     NewGameState(numPlayers, GetSharedBoard(), rng),
 		maskDirty: true,
 	}
 	env.syncLastState()
@@ -48,8 +48,7 @@ func (e *Env) syncLastState() {
 
 func (e *Env) Reset() {
 	// Preserve the per-env RNG so the random sequence continues without re-seeding.
-	rng := e.State.Rng
-	e.State = NewGameState(e.State.NumPlayers, rng)
+	e.State = NewGameState(e.State.NumPlayers, GetSharedBoard(), e.State.Rng)
 	e.maskDirty = true
 	e.syncLastState()
 }
@@ -272,7 +271,7 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 				// Sell to Market immediately if connected to any merchant slot city
 				connectedToMerchant := false
 				for _, m := range e.State.Merchants {
-					if e.State.Board.HasConnection(action.CityID, m.CityID) {
+					if e.State.Board.HasConnection(e.State, action.CityID, m.CityID) {
 						connectedToMerchant = true
 						break
 					}
@@ -537,7 +536,7 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
                (pAfter.VPAuditLinks - prevAuditLinks)
 	incomeDelta := pAfter.IncomeLevel - prevIncome
 
-	reward += (float64(vpDelta)*0.5 + float64(incomeDelta)*0.1) * denseRewardScale
+	reward += (float64(vpDelta)*0.1 + float64(incomeDelta)*0.1) * denseRewardScale
 
 	// Safety Clamp: Ensure total reward per step is in [-1.0, 1.0]
 	if reward > 1.0 {
@@ -570,12 +569,12 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 }
 
 func (e *Env) BuildRoute(routeID int, owner PlayerId) {
-	e.State.Board.Routes[routeID].IsBuilt = true
-	e.State.Board.Routes[routeID].Owner = owner
+	e.State.RouteBuilt[routeID] = true
+	e.State.RouteOwners[routeID] = owner
 
 	for _, subID := range e.State.Board.Routes[routeID].SubRoutes {
-		e.State.Board.Routes[subID].IsBuilt = true
-		e.State.Board.Routes[subID].Owner = owner
+		e.State.RouteBuilt[subID] = true
+		e.State.RouteOwners[subID] = owner
 	}
 }
 

@@ -127,7 +127,11 @@ type GameState struct {
 	ActionsRemaining   int			`json:"actions_remaining"`
 	RoundCounter       int			`json:"round_counter"`
 
-	// Per-env isolated RNG — each Env has its own source to prevent global rand contention
+	// Link tracking (moved from MapGraph for purity)
+	RouteBuilt  []bool     `json:"route_built"`
+	RouteOwners []PlayerId `json:"route_owners"`
+
+	// Per-env isolated RNG
 	// and guarantee unique shuffles even when many envs are created concurrently.
 	Rng *rand.Rand	`json:"-"`
 
@@ -145,16 +149,22 @@ type GameState struct {
 
 // ─── Constructor ─────────────────────────────────────────────────────────────
 
-func NewGameState(numPlayers int, rng *rand.Rand) *GameState {
+func NewGameState(numPlayers int, board *MapGraph, rng *rand.Rand) *GameState {
 	gs := &GameState{
 		NumPlayers: numPlayers,
 		Epoch:      CanalEra,
-		Board:      NewMapGraph(),
+		Board:      board,
 		Players:    make([]*PlayerState, numPlayers),
 		Industries: make([]*TokenState, 0),
 		Merchants:  make([]MerchantSlot, 9),
 		TurnOrder:  make([]PlayerId, numPlayers),
 		Rng:        rng,
+		RouteBuilt: make([]bool, len(board.Routes)),
+		RouteOwners: make([]PlayerId, len(board.Routes)),
+	}
+
+	for i := range gs.RouteOwners {
+		gs.RouteOwners[i] = -1
 	}
 
 	// BFS scratch sized to city count (board must be loaded first)

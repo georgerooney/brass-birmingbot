@@ -35,9 +35,8 @@ func (gs *GameState) UpdateLinkBonuses(cityID CityID, bonus int) {
 		return
 	}
 	for _, routeID := range gs.Board.Adj[cityID] {
-		route := &gs.Board.Routes[routeID]
-		if route.IsBuilt && route.Owner != -1 {
-			gs.Players[route.Owner].VPAuditLinks += bonus
+		if gs.RouteBuilt[routeID] && gs.RouteOwners[routeID] != -1 {
+			gs.Players[gs.RouteOwners[routeID]].VPAuditLinks += bonus
 		}
 	}
 }
@@ -47,13 +46,15 @@ func (gs *GameState) ScoreEra(collectEvents bool) []ScoreEvent {
 	var events []ScoreEvent
 
 	// 1. Score Links
-	for _, route := range gs.Board.Routes {
-		if route.IsBuilt {
+	for i := range gs.Board.Routes {
+		if gs.RouteBuilt[i] {
+			route := gs.Board.Routes[i]
 			valA := gs.GetLinkValueForCity(route.CityA)
 			valB := gs.GetLinkValueForCity(route.CityB)
 			points := valA + valB
 			
-			p := gs.Players[route.Owner]
+			owner := gs.RouteOwners[i]
+			p := gs.Players[owner]
 			p.VP += points
 			p.ScoringBreakdown["Links"] += points
 			
@@ -64,7 +65,7 @@ func (gs *GameState) ScoreEra(collectEvents bool) []ScoreEvent {
 					Source: fmt.Sprintf("%s <-> %s", cityA, cityB),
 					Type:   "Link",
 					VP:     points,
-					Player: int(route.Owner),
+					Player: int(owner),
 				})
 			}
 		}
@@ -204,9 +205,9 @@ func (gs *GameState) EndEraTransition() {
 	// (Note: Scoring must be handled by caller before transition to capture metadata)
 
 	// 2. Board Wipe — remove all links
-	for i := range gs.Board.Routes {
-		gs.Board.Routes[i].IsBuilt = false
-		gs.Board.Routes[i].Owner = -1
+	for i := range gs.RouteBuilt {
+		gs.RouteBuilt[i] = false
+		gs.RouteOwners[i] = -1
 	}
 
 	// 3. Remove all Level 1 industries and score surviving Level 2+ flipped tiles AGAIN for Rail Era

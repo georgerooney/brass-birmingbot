@@ -21,12 +21,10 @@ from pathlib import Path
 import multiprocessing
 
 import numpy as np
-import torch as th
-import torch.nn as nn
-from sb3_contrib import MaskablePPO
-from sb3_contrib.common.maskable.policies import MaskableActorCriticPolicy
+import torch # Just the base import, we'll use th inside functions
+
+# Base SB3 classes are okay at top-level; the heavy model/torch logic is moved inside main()
 from stable_baselines3.common import utils
-from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from stable_baselines3.common.callbacks import CheckpointCallback, BaseCallback
 from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor
 from config import CurriculumState, DynamicLRScheduler, get_args, PPO_N_STEPS, PPO_BATCH_SIZE, PPO_N_EPOCHS, PPO_GAMMA, PPO_GAE_LAMBDA, PPO_CLIP_RANGE, PPO_TARGET_KL, PPO_ENT_COEF, NET_ARCH
@@ -117,7 +115,7 @@ class CurriculumCallback(BaseCallback):
         # 3p: 36 actions * 4 = 144.
         # 4p: 32 actions * 4 = 128.
         actions_per_game = {2: 40, 3: 36, 4: 32}
-        self.target_vp = actions_per_game.get(players, 40) * 4
+        self.target_vp = actions_per_game.get(players, 40) * 3.5
         
         self.vp_history = deque(maxlen=window_size)
         self.current_reward_scale = 1.0
@@ -165,10 +163,12 @@ class CurriculumCallback(BaseCallback):
 
 def main() -> None:
     try:
-        multiprocessing.set_start_method('spawn')
+        multiprocessing.set_start_method('spawn', force=True)
     except RuntimeError:
         pass # Already set
         
+    import torch as th
+    from sb3_contrib import MaskablePPO
     args = get_args()
 
     # Setup Directory Structure

@@ -126,7 +126,7 @@ func (env *Env) isValidActionWithCard(p *PlayerState, action Action, cardIdx int
 
 	case ActionNetwork:
 		route := env.State.Board.Routes[action.RouteID]
-		if route.IsBuilt {
+		if env.State.RouteBuilt[action.RouteID] {
 			return false
 		}
 
@@ -183,7 +183,7 @@ func (env *Env) isValidActionWithCard(p *PlayerState, action Action, cardIdx int
 			return false
 		}
 		// O(1): both routes must be unbuilt
-		if env.State.Board.Routes[action.RouteID].IsBuilt || env.State.Board.Routes[action.RouteID2].IsBuilt {
+		if env.State.RouteBuilt[action.RouteID] || env.State.RouteBuilt[action.RouteID2] {
 			return false
 		}
 		// Era Restrictions: neither route can be canal_only in Rail Era

@@ -32,12 +32,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({ currentState, analysisData
           const freq = stats ? stats.built / (analysisData?.num_episodes || 1) : 0;
           const winRate = stats?.built > 0 ? stats.win_built / stats.built : 0;
           
+          const isBuilt = currentState?.route_built?.[idx] || false;
+          const owner = currentState?.route_owners?.[idx] ?? -1;
+
           return (
             <g key={idx} className="route-group">
               <line 
                 x1={posA.x} y1={posA.y} x2={posB.x} y2={posB.y}
-                stroke={viewMode === 'heatmap' ? `rgba(234, 179, 8, ${0.1 + freq * 0.9})` : (route.IsBuilt ? (route.Owner === 0 ? '#8b5cf6' : '#ec4899') : "rgba(255,255,255,0.12)")}
-                strokeWidth={viewMode === 'heatmap' ? 4 + freq * 10 : (route.IsBuilt ? 4 : 2)}
+                stroke={viewMode === 'heatmap' ? `rgba(234, 179, 8, ${0.1 + freq * 0.9})` : (isBuilt ? (owner === 0 ? '#8b5cf6' : '#ec4899') : "rgba(255,255,255,0.12)")}
+                strokeWidth={viewMode === 'heatmap' ? 4 + freq * 10 : (isBuilt ? 4 : 2)}
                 strokeDasharray={route.Type === "Canal" ? "8,4" : "0"}
                 className="transition-all duration-500"
               />

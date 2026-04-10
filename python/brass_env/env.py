@@ -80,6 +80,9 @@ class BrassEnv(gym.Env):
         
         self.lib.BrassGetActionNamesJSON.argtypes = [ctypes.c_char_p, ctypes.c_int]
         self.lib.BrassGetActionNamesJSON.restype = ctypes.c_int
+
+        self.lib.BrassGetStepMetadataJSON.argtypes = [ctypes.c_int32, ctypes.c_char_p, ctypes.c_int]
+        self.lib.BrassGetStepMetadataJSON.restype = ctypes.c_int
         
         self.lib.BrassActivePlayer.argtypes = [ctypes.c_int32]
         self.lib.BrassActivePlayer.restype = ctypes.c_int32
@@ -160,6 +163,11 @@ class BrassEnv(gym.Env):
         
         info = {}
         
+        # Always fetch step metadata for traces/diagnostics
+        step_meta = self._get_step_metadata()
+        if step_meta:
+            info.update(step_meta)
+        
         if include_state:
             state_json = self._get_state_json()
             info["state"] = state_json
@@ -185,6 +193,14 @@ class BrassEnv(gym.Env):
         max_len = 1024 * 1024 # 1MB should be enough for state JSON
         buf = ctypes.create_string_buffer(max_len)
         res = self.lib.BrassGetStateJSON(self._env_id, buf, max_len)
+        if res > 0:
+            return json.loads(buf.value[:res])
+        return None
+
+    def _get_step_metadata(self) -> dict | None:
+        max_len = 64 * 1024 # 64KB should be enough for metadata
+        buf = ctypes.create_string_buffer(max_len)
+        res = self.lib.BrassGetStepMetadataJSON(self._env_id, buf, max_len)
         if res > 0:
             return json.loads(buf.value[:res])
         return None
