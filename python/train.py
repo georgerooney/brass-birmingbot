@@ -34,7 +34,7 @@ from config import (
     PPO_ENT_COEF,
     NET_ARCH,
 )
-from utils import DiagnosticCallback
+from utils import DiagnosticCallback, ProfilingCallback
 import torch as th
 import torch.nn as nn
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
@@ -316,6 +316,8 @@ def main() -> None:
             log_file=str(run_dir / "diagnostics.log"),
         )
 
+        profiling_callback = ProfilingCallback(freq=100)
+
         model.learn(
             total_timesteps=args.steps,
             progress_bar=False,
@@ -324,6 +326,7 @@ def main() -> None:
                 win_rate_callback,
                 curriculum_callback,
                 diagnostic_callback,
+                profiling_callback,
             ],
             reset_num_timesteps=False if args.load else True,
         )

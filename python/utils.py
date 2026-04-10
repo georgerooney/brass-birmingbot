@@ -1,5 +1,6 @@
 import os
 import multiprocessing
+import psutil
 from collections import defaultdict
 import numpy as np
 import torch as th
@@ -134,5 +135,46 @@ class DiagnosticCallback(BaseCallback):
                 args=(temp_path, self.num_episodes, self.log_file, self.num_timesteps),
             )
             p.start()
+
+        return True
+
+
+class ProfilingCallback(BaseCallback):
+    def __init__(self, freq: int = 100, verbose: int = 0):
+        super().__init__(verbose)
+        self.freq = freq
+        self.process = psutil.Process(os.getpid())
+        self.process.cpu_percent(interval=None)
+        psutil.cpu_percent(interval=None)
+
+    def _on_step(self) -> bool:
+        if self.n_calls == 1:
+            self.logger.record("hparams/batch_size", self.model.batch_size)
+            self.logger.record("hparams/n_steps", self.model.n_steps)
+            self.logger.record("hparams/n_epochs", self.model.n_epochs)
+            self.logger.record("hparams/gamma", self.model.gamma)
+            if isinstance(self.model.learning_rate, float):
+                self.logger.record("hparams/learning_rate", self.model.learning_rate)
+
+        if self.n_calls % self.freq == 0:
+            self.logger.record(
+                "system/cpu_percent", psutil.cpu_percent(interval=None)
+            )
+            self.logger.record("system/ram_percent", psutil.virtual_memory().percent)
+
+            self.logger.record(
+                "process/cpu_percent", self.process.cpu_percent(interval=None)
+            )
+            self.logger.record("process/ram_percent", self.process.memory_percent())
+
+            if th.cuda.is_available():
+                self.logger.record(
+                    "system/gpu_vram_allocated_mb",
+                    th.cuda.memory_allocated() / 1024 / 1024,
+                )
+                self.logger.record(
+                    "system/gpu_vram_reserved_mb",
+                    th.cuda.memory_reserved() / 1024 / 1024,
+                )
 
         return True
