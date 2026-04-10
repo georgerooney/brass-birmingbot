@@ -63,6 +63,9 @@ class BrassEnv(gym.Env):
         self.lib.BrassObsSize.argtypes = []
         self.lib.BrassObsSize.restype = ctypes.c_int32
         
+        self.lib.BrassObsSlotEnd.argtypes = []
+        self.lib.BrassObsSlotEnd.restype = ctypes.c_int32
+        
         self.lib.BrassGetObs.argtypes = [ctypes.c_int32, ctypes.POINTER(ctypes.c_float)]
         self.lib.BrassGetObs.restype = None
         
@@ -87,8 +90,10 @@ class BrassEnv(gym.Env):
         # Query static dimensions
         obs_size = self.lib.BrassObsSize()
         action_size = self.lib.BrassActionSize()
+        obs_slot_end = self.lib.BrassObsSlotEnd()
         
         self._action_size = action_size
+        self._obs_slot_end = obs_slot_end
         
         self.observation_space = gym.spaces.Box(
             low=0.0,
@@ -168,6 +173,10 @@ class BrassEnv(gym.Env):
         
     def action_masks(self) -> np.ndarray:
         return self._mask_buf.astype(np.bool_)
+        
+    @property
+    def board_size(self) -> int:
+        return self._obs_slot_end
         
     def _get_state_json(self) -> dict | None:
         max_len = 1024 * 1024 # 1MB should be enough for state JSON

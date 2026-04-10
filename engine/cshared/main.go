@@ -79,6 +79,11 @@ func BrassObsSize() C.int32_t {
 	return C.int32_t(engine.ObsTotalSize)
 }
 
+//export BrassObsSlotEnd
+func BrassObsSlotEnd() C.int32_t {
+	return C.int32_t(engine.ObsSlotEnd)
+}
+
 //export BrassGetObs
 func BrassGetObs(envID C.int32_t, bufOut *C.float) {
 	env := lookupEnv(envID)

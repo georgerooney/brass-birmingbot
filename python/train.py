@@ -57,10 +57,10 @@ def make_env_fn(rank: int, num_players: int):
 
 class BrassExpertExtractor(BaseFeaturesExtractor):
     """Separates the flat observation into Board and Hand components."""
-    def __init__(self, observation_space, features_dim: int = 1024):
+    def __init__(self, observation_space, features_dim: int = 1024, board_size: int = 2204):
         super().__init__(observation_space, features_dim)
         # Slices (must match engine/observation.go)
-        self.board_size = 2204
+        self.board_size = board_size
         assert observation_space.shape[0] >= self.board_size, (
             f"Observation size {observation_space.shape[0]} is smaller than board_size {self.board_size}"
         )
@@ -244,11 +244,15 @@ def main() -> None:
         vec_env = SubprocVecEnv(env_fns)
         vec_env = VecMonitor(vec_env)
 
+        # Query board size from environment
+        board_size = vec_env.get_attr('board_size')[0]
+        print(f"Queried board size: {board_size}")
+
         # Simplified Network configuration (Legacy 1024)
         features_dim = 512
         policy_kwargs = dict(
             features_extractor_class=BrassExpertExtractor,
-            features_extractor_kwargs=dict(features_dim=features_dim),
+            features_extractor_kwargs=dict(features_dim=features_dim, board_size=board_size),
             net_arch=dict(pi=[], vf=[512, 256]), 
         )
 
