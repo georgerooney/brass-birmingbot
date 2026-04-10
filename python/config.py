@@ -38,6 +38,9 @@ def get_args():
     parser.add_argument("--run-name", type=str,  default=None,    help="Custom name for this run")
     parser.add_argument("--use-transformer", action="store_true", help="Use card attention transformer")
     parser.add_argument("--no-server", action="store_true", help="Skip server launch")
+    parser.add_argument("--patience", type=int, default=200_000, help="Steps to maintain threshold")
+    parser.add_argument("--fallback-steps", type=int, default=2_000_000, help="Max steps per phase")
+    parser.add_argument("--multi-phase", action="store_true", help="Use multi-phase curriculum")
     return parser.parse_args()
 
 # --- Hyperparameters ---
@@ -49,6 +52,10 @@ PPO_GAE_LAMBDA = 0.95
 PPO_CLIP_RANGE = 0.2
 PPO_TARGET_KL = 0.03
 PPO_ENT_COEF = 0.05
+
+# --- Curriculum Hyperparameters ---
+ACTIONS_PER_PLAYER = {2: 40, 3: 36, 4: 32}
+VP_MULTIPLIER = 3.5
 
 # --- Network Architecture ---
 NET_ARCH = dict(pi=[512, 256], vf=[512, 256])

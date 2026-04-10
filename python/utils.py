@@ -7,9 +7,9 @@ from stable_baselines3.common.callbacks import BaseCallback
 from sb3_contrib import MaskablePPO
 from brass_env.env import BrassEnv
 
-def run_diagnostics(model_path: str, num_episodes: int, log_file: str, train_steps: int):
+def run_diagnostics(model_path: str, num_episodes: int, log_file: str, train_steps: int, num_players: int):
     try:
-        env = BrassEnv(num_players=2)
+        env = BrassEnv(num_players=num_players)
         model = MaskablePPO.load(model_path)
         
         move_types = defaultdict(int)
@@ -93,11 +93,15 @@ def run_diagnostics(model_path: str, num_episodes: int, log_file: str, train_ste
             f.write(f"Error in diagnostics at step {train_steps}: {str(e)}\n")
 
 class DiagnosticCallback(BaseCallback):
-    def __init__(self, save_freq: int, num_episodes: int, log_file: str, verbose: int = 0):
+    def __init__(self, save_freq: int, num_episodes: int, log_file: str, num_players: int = 2, verbose: int = 0):
         super().__init__(verbose)
         self.save_freq = save_freq
         self.num_episodes = num_episodes
         self.log_file = log_file
+        self.num_players = num_players
+        
+    def set_num_players(self, num_players: int):
+        self.num_players = num_players
         
     def _on_step(self) -> bool:
         if self.n_calls % self.save_freq == 0:
@@ -107,7 +111,7 @@ class DiagnosticCallback(BaseCallback):
             
             p = multiprocessing.Process(
                 target=run_diagnostics, 
-                args=(temp_path, self.num_episodes, self.log_file, self.num_timesteps)
+                args=(temp_path, self.num_episodes, self.log_file, self.num_timesteps, self.num_players)
             )
             p.start()
             

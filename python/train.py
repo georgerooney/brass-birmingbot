@@ -155,6 +155,122 @@ class CurriculumCallback(BaseCallback):
             self.logger.record("train/rolling_avg_vp", np.mean(self.vp_history))
         return True
 
+
+class MultiPhaseCurriculumCallback(BaseCallback):
+    def __init__(self, state: CurriculumState, total_envs: int, patience: int, fallback_steps: int, diagnostic_callback=None, verbose: int = 0):
+        super().__init__(verbose)
+        self.state = state
+        self.total_envs = total_envs
+        self.patience = patience
+        self.fallback_steps = fallback_steps
+        self.diagnostic_callback = diagnostic_callback
+        
+        # Phase definitions: (p2_frac, p3_frac, p4_frac)
+        self.phases = [
+            (1.0, 0.0, 0.0),  # Phase 1: 100% 2p
+            (0.75, 0.25, 0.0), # Phase 2: 75% 2p, 25% 3p
+            (0.20, 0.80, 0.0), # Phase 3: 20% 2p, 80% 3p
+            (0.40, 0.40, 0.20),# Phase 4: 40% 2p, 40% 3p, 20% 4p
+            (0.20, 0.20, 0.60),# Phase 5: 20% 2p, 20% 3p, 60% 4p
+            (0.33, 0.33, 0.34),# Phase 6: 33% 2p, 33% 3p, 33% 4p (approx)
+        ]
+        self.current_phase = 0
+        self.steps_in_phase = 0
+        self.patience_counter = 0
+        
+        from config import ACTIONS_PER_PLAYER, VP_MULTIPLIER
+        self.actions_per_player = ACTIONS_PER_PLAYER
+        self.vp_multiplier = VP_MULTIPLIER
+        
+        # History for VPs per player count
+        self.vp_history = {2: deque(maxlen=100), 3: deque(maxlen=100), 4: deque(maxlen=100)}
+        
+    def _on_training_start(self) -> None:
+        # Initialize first phase
+        self._apply_phase_distribution(self.current_phase)
+        
+    def _apply_phase_distribution(self, phase_idx: int):
+        p2, p3, p4 = self.phases[phase_idx]
+        n2 = int(self.total_envs * p2)
+        n3 = int(self.total_envs * p3)
+        n4 = self.total_envs - n2 - n3 # Remainder
+        
+        # Assign to workers
+        idx = 0
+        for _ in range(n2):
+            self.training_env.env_method("set_num_players", 2, indices=[idx])
+            idx += 1
+        for _ in range(n3):
+            self.training_env.env_method("set_num_players", 3, indices=[idx])
+            idx += 1
+        for _ in range(n4):
+            self.training_env.env_method("set_num_players", 4, indices=[idx])
+            idx += 1
+            
+        print(f"\nDEBUG: Switched to Phase {phase_idx + 1} distribution: 2p={n2}, 3p={n3}, 4p={n4}\n")
+        
+    def _on_step(self) -> bool:
+        self.state.num_timesteps = self.num_timesteps
+        self.steps_in_phase += self.training_env.num_envs
+        
+        # Track episode ends for VP
+        for info in self.locals.get("infos", []):
+            if "winner" in info:
+                t_info = info.get("terminal_info", info)
+                num_players = t_info.get("num_players")
+                vps = t_info.get("vps")
+                if num_players and vps:
+                    avg_vp = np.mean(vps)
+                    self.vp_history[num_players].append(avg_vp)
+                    
+        # Determine dominant player count for current phase to check threshold
+        p2, p3, p4 = self.phases[self.current_phase]
+        dom_players = 2
+        if p3 > p2 and p3 > p4: dom_players = 3
+        if p4 > p2 and p4 > p3: dom_players = 4
+        
+        target_vp = self.actions_per_player[dom_players] * self.vp_multiplier
+        
+        # Check threshold for dominant player count
+        met_threshold = False
+        if len(self.vp_history[dom_players]) >= 10: # Need some history
+            avg_vp = np.mean(self.vp_history[dom_players])
+            if avg_vp >= target_vp:
+                met_threshold = True
+                
+        if met_threshold:
+            self.patience_counter += self.training_env.num_envs
+        else:
+            self.patience_counter = 0 # Reset if drops below
+            
+        # Check for transition
+        should_transition = False
+        if self.patience_counter >= self.patience:
+            print(f"\nDEBUG: Phase {self.current_phase + 1} target reached! Stability maintained.")
+            should_transition = True
+        elif self.steps_in_phase >= self.fallback_steps and self.current_phase < len(self.phases) - 1:
+            print(f"\nDEBUG: Phase {self.current_phase + 1} fallback steps reached.")
+            should_transition = True
+            
+        if should_transition and self.current_phase < len(self.phases) - 1:
+            self.current_phase += 1
+            self.steps_in_phase = 0
+            self.patience_counter = 0
+            self._apply_phase_distribution(self.current_phase)
+            
+            # Update diagnostics player count
+            if self.diagnostic_callback:
+                self.diagnostic_callback.set_num_players(dom_players)
+            
+        # Log metrics
+        self.logger.record("train/phase", self.current_phase + 1)
+        self.logger.record("train/steps_in_phase", self.steps_in_phase)
+        for k, v in self.vp_history.items():
+            if len(v) > 0:
+                self.logger.record(f"train/avg_vp_{k}p", np.mean(v))
+                
+        return True
+
 # --- Schedulers moved to config.py ---
 
 # --- Diagnostics moved to utils.py ---
@@ -206,9 +322,25 @@ def main() -> None:
         # n_steps = 1024 (rollout length, total batch = n_steps × n_envs)
         
         # Instantiate Callbacks
+        diagnostic_callback = DiagnosticCallback(
+            save_freq=max(250_000 // args.envs, 1),
+            num_episodes=25,
+            log_file=str(run_dir / "diagnostics.log"),
+            num_players=args.players
+        )
+
         # Curriculum Tracking (phases out dense rewards after performance threshold)
         curriculum_state = CurriculumState(decay_steps=5_000_000)
-        curriculum_callback = CurriculumCallback(state=curriculum_state, players=args.players)
+        if args.multi_phase:
+            curriculum_callback = MultiPhaseCurriculumCallback(
+                state=curriculum_state, 
+                total_envs=args.envs, 
+                patience=args.patience, 
+                fallback_steps=args.fallback_steps,
+                diagnostic_callback=diagnostic_callback
+            )
+        else:
+            curriculum_callback = CurriculumCallback(state=curriculum_state, players=args.players)
         lr_schedule = DynamicLRScheduler(args.lr, curriculum_state)
         win_rate_callback = PositionWinRateCallback(window_size=100)
 
@@ -275,11 +407,7 @@ def main() -> None:
             save_vecnormalize=True,
         )
 
-        diagnostic_callback = DiagnosticCallback(
-            save_freq=max(250_000 // args.envs, 1),
-            num_episodes=25,
-            log_file=str(run_dir / "diagnostics.log")
-        )
+
 
         model.learn(
             total_timesteps=args.steps,
