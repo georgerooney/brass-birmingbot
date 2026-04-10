@@ -350,6 +350,12 @@ def main() -> None:
         model.save(str(final_save_path))
         print(f"\nTraining complete. Model saved to {final_save_path}.zip")
 
+        # Upload the entire run directory to GCS before exiting
+        if bucket_name:
+            print(f"Uploading run directory {run_dir} to GCS...")
+            from gcs_utils import upload_directory
+            upload_directory(str(run_dir), bucket_name, f"runs/{run_id}")
+
         vec_env.close()
 
     finally:

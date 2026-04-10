@@ -1,0 +1,29 @@
+# Exclude git history
+.git
+.gitignore
+
+# Exclude Python artifacts
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.ruff_cache
+.venv
+venv
+python/.venv/
+**/.venv/
+
+# Exclude training logs and data
+python/runs/
+python/eval_data/
+python/diagnostic_eval/
+python/scratch/
+python/*.log
+
+# Exclude node modules (if copied)
+**/node_modules/
+
+# Exclude OS files
+.DS_Store
+Thumbs.db

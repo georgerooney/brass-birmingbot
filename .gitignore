@@ -1,67 +1,27 @@
-# Go
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
 
 # Python
-**/__pycache__/
-*.py[cod]
-*$py.class
-**/.venv/
-**/venv/
-**/ENV/
-**/env/
-**/runs/
-**/eval_data/
-**/eval_data_latest/
-**/eval_data_expert_analysis/
-**/diagnostic_eval/
-**/scratch/
+__pycache__/
+*.pyc
+.venv/
+.uv/
+.pytest_cache/
 
-# UI / Node
-**/node_modules/
-**/dist/
-**/dist-ssr/
-**/build/
-**/public/data/traces/
-**/public/data/analysis_data.json
-**/public/data/eval_index.json
-**/public/data/heatmap.json
-.eslintcache
-*.local
+# Node
+node_modules/
+.next/
+dist/
 
-# Artifacts
-*.zip
-*.tar.gz
-*.rar
-*.7z
-*.model
-*.pth
+# Go
+*.so
+main.exe
 
-# Secrets
-.env*
-*.secret
-credentials.json
+# App specific
+python/runs/
+python/eval_data/
 
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-
-# OS / IDE
+# OS specific
 .DS_Store
-Thumbs.db
-.vscode/*
-!.vscode/extensions.json
-.idea/
-*.swp
-*.suo
-*.sln
-*.ntvs*
-*.njsproj
