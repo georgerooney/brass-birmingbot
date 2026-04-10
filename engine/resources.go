@@ -315,6 +315,24 @@ func (gs *GameState) SourceBeer(atCity CityID, playerID PlayerId, requireConnect
 	return false
 }
 
+// HasNetworkBeer checks if beer is available from either opponent breweries (connected) or own breweries (anywhere).
+func (gs *GameState) HasNetworkBeer(atCity CityID, playerID PlayerId, ownOnly bool) bool {
+	for _, tok := range gs.Industries {
+		if tok.Industry == BreweryType && tok.Beer > 0 {
+			if ownOnly {
+				if tok.Owner == playerID {
+					return true
+				}
+			} else {
+				if tok.Owner != playerID && gs.HasConnectionFast(atCity, tok.CityID) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
 // PredictBeerPossible checks if a beer is available for consumption without state change.
 func (gs *GameState) PredictBeerPossible(atCity CityID, playerID PlayerId, requireConnection bool, includeMerchants bool) bool {
 	if includeMerchants {

@@ -209,14 +209,24 @@ func (gs *GameState) EndEraTransition() {
 		gs.Board.Routes[i].Owner = -1
 	}
 
-	// 3. Remove all Level 1 industries
+	// 3. Remove all Level 1 industries and score surviving Level 2+ flipped tiles AGAIN for Rail Era
 	var remaining []*TokenState
 	for _, tok := range gs.Industries {
 		if tok.Level > 1 {
 			remaining = append(remaining, tok)
+			// Rule: Flipped industries that survive the transition are scored AGAIN in the Rail Era.
+			// We credit this to the audit field now so the RL agent sees the jump.
+			if tok.Flipped {
+				stat := IndustryCatalog[tok.Industry][tok.Level]
+				gs.Players[tok.Owner].VPAuditIndustries += stat.VP
+			}
 		}
 	}
 	gs.Industries = remaining
+
+	// 4. Score all surviving Links for the transition bonus? 
+	// Actually links are REMOVED (Board Wipe), but you get their points at the end of Canal.
+	// The VPAuditLinks already has those points from when they were built/adjacent-flipped.
 
 	// 4. Canal Era specific reset → Rail Era
 	if gs.Epoch == CanalEra {
@@ -233,5 +243,8 @@ func (gs *GameState) EndEraTransition() {
 
 		gs.RoundCounter = 1
 		gs.ActionsRemaining = 2 // Always 2 in Rail
+	} else {
+		// Rail Era is over -> Game Over
+		gs.GameOver = true
 	}
 }

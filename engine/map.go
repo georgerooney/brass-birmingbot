@@ -57,6 +57,7 @@ type Route struct {
 	Owner     PlayerId
 	Type      string // For now keep it as string "both", "rail_only", "canal_only"
 	IsBuilt   bool
+	IsSubRoute bool  // If true, this route is handled implicitly by a parent route
 	SubRoutes []int // For hyperedges (e.g. FB2 injection)
 }
 
@@ -148,6 +149,8 @@ func (m *MapGraph) loadMap() {
 			subRoute2 := addRoute("Worcester", "Farm Brewery South", edge.Type)
 			
 			// Map these injected subRoutes back into the primary logical route
+			m.Routes[subRoute1].IsSubRoute = true
+			m.Routes[subRoute2].IsSubRoute = true
 			m.Routes[routeID].SubRoutes = append(m.Routes[routeID].SubRoutes, subRoute1, subRoute2)
 		}
 	}

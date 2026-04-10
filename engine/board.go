@@ -67,6 +67,25 @@ func (gs *GameState) GetAvailableBuildSlot(cityID CityID, ind IndustryType, play
 	return -1, false
 }
 
+// IsOverbuild checks if a specific slot can be overbuilt by the player with a new token.
+func (gs *GameState) IsOverbuild(cityID CityID, slotIdx int, ind IndustryType, playerID PlayerId) bool {
+	tok := gs.GetTokenAtSlot(cityID, slotIdx)
+	if tok == nil {
+		return false
+	}
+	if tok.Industry != ind {
+		return false
+	}
+	if tok.Owner == playerID {
+		nextLvl := gs.Players[playerID].CurrentLevel[ind]
+		return nextLvl > tok.Level
+	}
+	if ind == CoalMineType || ind == IronWorksType {
+		return gs.IsResourceExhausted(Resource(ind))
+	}
+	return false
+}
+
 // GetTokenAtSlot returns the industry sitting at a specific slot in a city.
 func (gs *GameState) GetTokenAtSlot(cityID CityID, slotIdx int) *TokenState {
 	for _, tok := range gs.Industries {

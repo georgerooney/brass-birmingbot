@@ -1,5 +1,7 @@
 package engine
 
+
+
 func (env *Env) GetActionMask() []bool {
 	EnsureActionRegistry(env.State.Board)
 
@@ -7,19 +9,40 @@ func (env *Env) GetActionMask() []bool {
 		return env.cachedMask
 	}
 
-	size := 12000 // Expert Action Space: 8 slots * 1500 base actions
+	size := 886 // V4 Strategic Action Space
 	if env.cachedMask == nil || len(env.cachedMask) != size {
 		env.cachedMask = make([]bool, size)
 	}
 
 	player := env.State.Players[env.State.Active]
-	for slotIdx := 0; slotIdx < ObsHandSize; slotIdx++ {
-		for actionIdx, action := range ActionRegistry {
-			if actionIdx >= 1500 {
-				break
-			}
-			totalIdx := actionIdx + (slotIdx * 1500)
-			env.cachedMask[totalIdx] = env.isValidActionWithCard(player, action, slotIdx)
+	nonPassLegalCount := 0
+	for actionIdx, action := range ActionRegistry {
+		if action.Type == ActionPass {
+			continue
+		}
+
+		// Heuristic check: Is there ANY card that makes this action valid?
+		// We use ChooseBestCardForAction which returns -1 if no card is valid.
+		cardSlotIdx := env.ChooseBestCardForAction(player, action)
+		isValid := (cardSlotIdx != -1)
+		env.cachedMask[actionIdx] = isValid
+		if isValid {
+			nonPassLegalCount++
+		}
+	}
+
+	// 2. Audit and Handle Pass
+	if nonPassLegalCount == 0 && !env.State.GameOver {
+		// ... (stalemate logging same as before)
+	}
+
+	// Only allow Pass if no other move is valid
+	// In Registry, ActionPass is usually one of the last indices (handled by RegisterConstants)
+	// We'll iterate and find it.
+	allowPass := (nonPassLegalCount == 0)
+	for i, action := range ActionRegistry {
+		if action.Type == ActionPass {
+			env.cachedMask[i] = allowPass
 		}
 	}
 
@@ -52,25 +75,30 @@ func (env *Env) isValidActionWithCard(p *PlayerState, action Action, cardIdx int
 		}
 
 		// 3. Slot Availability and Overbuild
-		slotIdx, overbuild := env.State.GetAvailableBuildSlot(action.CityID, action.IndustryType, p.ID)
-		if slotIdx == -1 {
+		slotIdx := action.SlotIndex
+		overbuild := env.State.IsOverbuild(action.CityID, slotIdx, action.IndustryType, p.ID)
+		
+		// If the slot is filled by someone else and it's NOT an overbuild, it's blocked.
+		// GetTokenAtSlot confirms if the slot is currently occupied.
+		tok := env.State.GetTokenAtSlot(action.CityID, slotIdx)
+		if tok != nil && !overbuild {
 			return false
 		}
-        if overbuild {
-            // Check if it's an opponent's mine/works
-            tok := env.State.GetTokenAtSlot(action.CityID, slotIdx)
-            if tok != nil && tok.Owner != p.ID {
-                // Rule: May only overbuild opponent's coal/iron if board cubes AND market are empty.
-                if tok.Industry == CoalMineType {
-                     if !env.State.IsResourceExhausted(Coal) { return false }
-                } else if tok.Industry == IronWorksType {
-                     if !env.State.IsResourceExhausted(Iron) { return false }
-                } else {
-                    // Cannot overbuild other opponent industries (Cotton, etc.)
-                    return false
-                }
-            }
-        }
+
+		if overbuild {
+			// Check if it's an opponent's mine/works
+			if tok != nil && tok.Owner != p.ID {
+				// Rule: May only overbuild opponent's coal/iron if board cubes AND market are empty.
+				if tok.Industry == CoalMineType {
+					 if !env.State.IsResourceExhausted(Coal) { return false }
+				} else if tok.Industry == IronWorksType {
+					 if !env.State.IsResourceExhausted(Iron) { return false }
+				} else {
+					// Cannot overbuild other opponent industries (Cotton, etc.)
+					return false
+				}
+			}
+		}
 
 		// 4. Card Availability
 		if !env.State.CanCardBeUsedForBuild(action.CityID, action.IndustryType, p.ID, cardIdx) {
@@ -191,18 +219,17 @@ func (env *Env) isValidActionWithCard(p *PlayerState, action Action, cardIdx int
 		return true
 
 	case ActionSell:
-		// Valid only if the player has at least one industry that can sell to this specific merchant slot.
-		if action.MerchantIdx < 0 || action.MerchantIdx >= len(env.State.Merchants) {
-			return false
-		}
-		slot := env.State.Merchants[action.MerchantIdx]
+		// Version 4: One singular "greedy sell" action.
+		// Valid only if the player has at least one industry that can sell to ANY reachable merchant slot.
 		for _, tok := range env.State.Industries {
 			if tok.Owner == p.ID && !tok.Flipped &&
 				(tok.Industry == CottonType || tok.Industry == ManufacturedGoodsType || tok.Industry == PotteryType) {
-				if env.State.CanSellToMerchant(tok, action.MerchantIdx) {
-					// Beer must be available (merchant beer, opponent brewery, or own brewery)
-					if slot.AvailableBeer > 0 || env.State.PredictBeerPossible(tok.CityID, p.ID, true, false) {
-						return true
+				for midx, m := range env.State.Merchants {
+					if env.State.CanSellToMerchant(tok, midx) {
+						// Beer must be available (merchant beer, opponent brewery, or own brewery)
+						if m.AvailableBeer > 0 || env.State.PredictBeerPossible(tok.CityID, p.ID, true, true) {
+							return true
+						}
 					}
 				}
 			}
@@ -222,7 +249,7 @@ func (env *Env) isValidActionWithCard(p *PlayerState, action Action, cardIdx int
 
 	case ActionLoan:
 		// Rule: Can take loan if income level index permits (cannot drop below -10 which is index 0)
-		if p.IncomeLevel >= 13 && len(p.Hand) > 0 {
+		if p.IncomeLevel >= 0 && len(p.Hand) > 0 {
 			return true
 		}
 		return false

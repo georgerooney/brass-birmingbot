@@ -58,18 +58,17 @@ def make_env_fn(rank: int, num_players: int):
 
 class BrassExpertExtractor(BaseFeaturesExtractor):
     """Separates the flat observation into Board and Hand components."""
-    def __init__(self, observation_space, features_dim: int = 128):
+    def __init__(self, observation_space, features_dim: int = 1024):
         super().__init__(observation_space, features_dim)
         # Slices (must match engine/observation.go)
         self.board_size = 2204
         
-        # Board Encoder: Condenses the huge board state into a strategic embedding
-        # Shrinking to 2-layer compact MLP (Back to Basics)
+        # Board Encoder: Legacy 1024-dimensional capacity
         self.board_encoder = nn.Sequential(
-            nn.Linear(self.board_size, 256),
-            nn.LeakyReLU(),
-            nn.Linear(256, features_dim),
-            nn.LeakyReLU(),
+            nn.Linear(self.board_size, 1024),
+            nn.ReLU(),
+            nn.Linear(1024, features_dim),
+            nn.ReLU(),
         )
 
     def forward(self, observations: th.Tensor) -> th.Tensor:
@@ -80,13 +79,13 @@ class BrassExpertExtractor(BaseFeaturesExtractor):
 class BrassExpertPolicy(MaskableActorCriticPolicy):
     """Simplified policy head for purely strategic actions."""
     def _get_action_logits(self, latent_pi: th.Tensor) -> th.Tensor:
-        # standard linear head for the flattened 1400 strategic action space
+        # Standard linear head for the flattened 886 strategic action space
         return self.action_net(latent_pi)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Re-allocate the action_net to match our new 1,400 strategic action space
-        self.action_net = nn.Linear(self.mlp_extractor.latent_dim_pi, 1400)
+        # Re-allocate the action_net to match our new 886 strategic action space
+        self.action_net = nn.Linear(self.mlp_extractor.latent_dim_pi, 886)
         
         # Orthogonal init for stable start
         nn.init.orthogonal_(self.action_net.weight, gain=0.01)
@@ -245,15 +244,15 @@ def main() -> None:
         vec_env = SubprocVecEnv(env_fns)
         vec_env = VecMonitor(vec_env)
 
-        # Simplified Network configuration (Back to Basics)
-        features_dim = 128 
+        # Simplified Network configuration (Legacy 1024)
+        features_dim = 512
         policy_kwargs = dict(
             features_extractor_class=BrassExpertExtractor,
             features_extractor_kwargs=dict(features_dim=features_dim),
-            net_arch=dict(pi=[128, 128], vf=[128, 128]), 
+            net_arch=dict(pi=[], vf=[512, 256]), 
         )
 
-        n_steps = 512  # rollout length (total batch = n_steps × n_envs)
+        n_steps = 256  # rollout length (total batch = n_steps × n_envs)
         
         # Instantiate Callbacks
         # Curriculum Tracking (phases out dense rewards after performance threshold)
@@ -278,9 +277,9 @@ def main() -> None:
                 BrassExpertPolicy,
                 vec_env,
                 n_steps=n_steps,
-                batch_size=8192,       
+                batch_size=256,        # Tighter batch for faster convergence
                 n_epochs=10,           
-                gamma=0.997,           
+                gamma=0.99,            # Strategic focus (reverted from 0.997)
                 gae_lambda=0.98,       
                 clip_range=0.2,
                 target_kl=0.015,       

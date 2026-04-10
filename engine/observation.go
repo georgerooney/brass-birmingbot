@@ -36,7 +36,7 @@ const (
 	ObsSlotWidth  = 24  // present(1) + owner_ohe(4) + industry_ohe(8) + level(1) + flipped(1) + res(3) + pad(6)
 	ObsCityWidth  = 12  // connectivity(1) + market_access(3) + proximity_res(3) + network_pres(1) + pad(4)
 	ObsCardWidth  = 24  // present(1) + type_ohe(4) + city_norm(1) + industry_ohe(8) + validity_mask(6) + expansion_val(1) + pad(3)
-	ObsPlayerWidth = 28 // money_norm(1) + income_norm(1) + vp_norm(1) + spent_norm(1) + active(1) + tokens(7) + next_tiers(6) + wipe_vuln(6) + delta_income(1) + dev_cost(1) + pad(3)
+	ObsPlayerWidth = 28 // money_norm(1) + income_norm(1) + vp_norm(1) + spent_norm(1) + active(1) + tokens(7) + next_tiers(6) + wipe_vuln(6) + delta_income(1) + dev_cost(1) + audit_ind(1) + audit_link(1) + pad(1)
 	ObsMerchWidth = 5
 
 	// Coal: 7 price slots; Iron: 5 price slots
@@ -157,9 +157,9 @@ func FillObservation(gs *GameState, buf []float32) {
 		}
 		p := gs.Players[absPid]
 
-		buf[base+0] = clampNorm(float32(p.Money), 100)
+		buf[base+0] = clampNorm(float32(p.Money), 50)
 		buf[base+1] = clampNorm(float32(p.IncomeLevel), 99)
-		buf[base+2] = clampNorm(float32(p.VP), 200)
+		buf[base+2] = clampNorm(float32(p.VP), 100)
 		buf[base+3] = clampNorm(float32(p.AmountSpent), 50)
 		// Tokens left per industry type (5 standard types, normalised to max 5)
 		for ind := IndustryType(0); ind <= BreweryType; ind++ {
@@ -178,6 +178,8 @@ func FillObservation(gs *GameState, buf []float32) {
 		}
 		buf[base+24] = clampNorm(float32(p.GetStepsToNextIncomePound()), 4)
 		buf[base+25] = clampNorm(float32(p.GetDevelopCostIron()), 4)
+		buf[base+26] = clampNorm(float32(p.VPAuditIndustries), 100)
+		buf[base+27] = clampNorm(float32(p.VPAuditLinks), 50)
 	}
 	off = ObsPlayerEnd
 

@@ -25,11 +25,11 @@ func main() {
 	gs.Players[1].VP = 50
 	
 	// P0 Takes a turn
-	reward0, _ := env.Step(actionPassID)
+	reward0, _ := env.Step(actionPassID, false, 1.0)
 	fmt.Printf("P0 Turn 1 Reward: %.2f (Expected: 0.00)\n", reward0)
 	
 	// P1 Takes a turn (should now receive the 50 VP reward!)
-	reward1, _ := env.Step(actionPassID)
+	reward1, _ := env.Step(actionPassID, false, 1.0)
 	fmt.Printf("P1 Turn 1 Reward: %.2f (Expected: 0.50)\n", reward1)
 
 	// 2. TIE-BREAK VERIFICATION
@@ -60,7 +60,7 @@ func main() {
 	gs.Players[1].Hand = []engine.Card{}
 	
 	// Step P0's last move. This will trigger the Round End -> Era End -> Game Over sequence.
-	rewardT0, _ := env.Step(actionPassID)
+	rewardT0, _ := env.Step(actionPassID, false, 1.0)
 	// P1 is winner (+1.0), P0 is loser (-1.0)
 	fmt.Printf("P0 Terminal Reward (Income Tie-break): %.2f (Expected: 0.10)\n", rewardT0)
 
@@ -83,7 +83,7 @@ func main() {
 	gs.Players[1].IncomeLevel = 30
 	gs.Players[1].Money = 10
 	
-	rewardT0_money, _ := env.Step(actionPassID)
+	rewardT0_money, _ := env.Step(actionPassID, false, 1.0)
 	fmt.Printf("P0 Terminal Reward (Money Tie-break): %.2f (Expected: 2.20)\n", rewardT0_money)
 
 	// Test Draw Tie-break
@@ -105,7 +105,7 @@ func main() {
 	gs.Players[1].IncomeLevel = 30
 	gs.Players[1].Money = 50 // Exactly tied
 	
-	rewardT0_draw, _ := env.Step(actionPassID)
+	rewardT0_draw, _ := env.Step(actionPassID, false, 1.0)
 	fmt.Printf("P0 Terminal Reward (Draw): %.2f (Expected: 1.20)\n", rewardT0_draw)
 
 	fmt.Println("\n=== VERIFICATION COMPLETE ===")

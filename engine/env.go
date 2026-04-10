@@ -59,7 +59,7 @@ func (e *Env) InvalidateMask() {
 	e.maskDirty = true
 }
 
-const ActionSpaceSize = 12000 // 8 cards * 1500 base actions
+const ActionSpaceSize = 886 // Simplified strategic action space (Basics v4)
 
 func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64) (reward float64, done bool) {
 	e.maskDirty = true // Any state change invalidates the cached mask
@@ -75,14 +75,22 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 
 	EnsureActionRegistry(e.State.Board)
 
-	// In Version 2.0, actionID encodes [CardSlot (0-7)][BaseAction (0-1499)]
-	baseActionID := actionID % 1500
-	cardSlotIdx := actionID / 1500
-
+	// In Version 3.0 (Basics), actionID is purely the index in ActionRegistry.
+	// We use a heuristic to choose the best card from the player's hand.
+	baseActionID := actionID
+	if baseActionID < 0 || baseActionID >= len(ActionRegistry) {
+		return 0.0, true
+	}
 	action := ActionRegistry[baseActionID]
+	active := e.State.Active
+	player := e.State.Players[active]
+
+	cardSlotIdx := e.ChooseBestCardForAction(player, action)
+	if cardSlotIdx == -1 {
+		return 0.0, false // Invalid action-card pairing (should be masked)
+	}
 
 	// Capture player state at beginning for reward (will use delta since last turn)
-	active := e.State.Active
 	prevAuditIndustries := e.LastAuditVPIndustries[active]
 	prevAuditLinks := e.LastAuditVPLinks[active]
 	prevIncome := e.LastIncome[active]
@@ -97,8 +105,6 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 		Era:          "Canal",
 	}
 	if e.State.Epoch == RailEra { e.LastMetadata.Era = "Rail" }
-
-	player := e.State.Players[active]
 
 	switch action.Type {
 	case ActionLoan:
@@ -122,20 +128,39 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 		player.IncomeLevel = newLevel
 		player.SyncIncome()
 
-		// Reward: Loan Buffer (offsets the immediate VP/Income penalty for training stability)
-		reward += 0.05 * denseRewardScale
+		// Reward: None (Noise removed for High-Contrast signal)
+		reward += 0.0 * denseRewardScale
 
 		// Heuristic: Discard least flexible cards for loan (Industry > Location > Wild)
 		// Spend chosen card
-		e.LastMetadata.CardsSpent, _ = e.GetCardAndBurn(cardSlotIdx)
+		actualCardIdx, ok := e.GetActualHandIndex(cardSlotIdx)
+		if ok {
+			card := e.State.Players[e.State.Active].Hand[actualCardIdx]
+			e.LastMetadata.CardsSpent = []Card{card}
+			e.State.ReturnCard(e.State.Active, actualCardIdx)
+			
+			// v2.4 Clarity: Small penalty for burning a LocationCard for a Loan
+			if card.Type == LocationCard {
+				reward -= 0.02 * denseRewardScale
+			}
+		}
 
 	case ActionPass:
 		// Discard the chosen card
 		actualCardIdx, ok := e.GetActualHandIndex(cardSlotIdx)
+		player := e.State.Players[e.State.Active]
 		if ok {
-			e.LastMetadata.CardsSpent = []Card{e.State.Players[e.State.Active].Hand[actualCardIdx]}
+			card := player.Hand[actualCardIdx]
+			e.LastMetadata.CardsSpent = []Card{card}
 			e.State.ReturnCard(e.State.Active, actualCardIdx)
+			
+			// v2.4 Clarity: Small penalty for burning a LocationCard for a Pass
+			if card.Type == LocationCard {
+				reward -= 0.02 * denseRewardScale
+			}
 		}
+		
+		reward -= 0.20 * denseRewardScale
 
 	case ActionScout:
 		// Discard 3
@@ -145,6 +170,8 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 		// Gain Wilds
 		player.Hand = append(player.Hand, Card{Type: WildLocationCard})
 		player.Hand = append(player.Hand, Card{Type: WildIndustryCard})
+		
+		reward += 0.0 * denseRewardScale
 
 	case ActionDevelop:
 		count := 1
@@ -166,14 +193,14 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 
 		// Discard chosen card
 		e.LastMetadata.CardsSpent, _ = e.GetCardAndBurn(cardSlotIdx)
+		reward += 0.0 * denseRewardScale
 
 	case ActionBuildIndustry:
 		moneyBefore := player.Money
 		// 1. Find Slot and Overbuild status
-		slotIdx, isOverbuild := e.State.GetAvailableBuildSlot(action.CityID, action.IndustryType, e.State.Active)
-		if slotIdx == -1 {
-			return 0.0, false // Should be caught by masking
-		}
+		// Version 4: We use the specific SlotIndex from the action choice.
+		slotIdx := action.SlotIndex
+		isOverbuild := e.State.IsOverbuild(action.CityID, slotIdx, action.IndustryType, e.State.Active)
 
 		// Store diagnostic meta
 		if includeMetadata {
@@ -268,10 +295,11 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 			e.State.FlipIndustry(len(e.State.Industries) - 1)
 		}
 
-		// Reward: Spending bonus (encourages using capital for board presence)
+		// Reward: Removed for purification
+		reward += 0.0 * denseRewardScale
 		moneySpent := moneyBefore - player.Money
 		if moneySpent > 0 {
-			reward += (float64(moneySpent) * 0.001) * denseRewardScale
+			reward += (float64(moneySpent) * 0.0) * denseRewardScale
 		}
 
 	case ActionBuildLink:
@@ -298,20 +326,21 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 		valA := e.State.GetLinkValueForCity(route.CityA)
 		valB := e.State.GetLinkValueForCity(route.CityB)
 		p.VPAuditLinks += (valA + valB)
+		reward += 0.0 * denseRewardScale
 
-		// Reward: Network expansion pulse
-		reward += 0.01 * denseRewardScale
+		// Reward: Removed for purification
+		reward += 0.0 * denseRewardScale
 
-		// Reward: Merchant connection bonus (pulse for first connection)
+		// Reward: Removed for purification
 		if (!wasConnectedA && e.State.IsMerchantConnected(route.CityA)) || 
 		   (!wasConnectedB && e.State.IsMerchantConnected(route.CityB)) {
-			reward += 0.02 * denseRewardScale
+			reward += 0.0 * denseRewardScale
 		}
 
-		// Reward: Spending bonus
+		// Reward: Removed for purification
 		moneySpent := moneyBefore - player.Money
 		if moneySpent > 0 {
-			reward += (float64(moneySpent) * 0.001) * denseRewardScale
+			reward += (float64(moneySpent) * 0.0) * denseRewardScale
 		}
 
 	case ActionBuildLinkDouble:
@@ -346,45 +375,16 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 		p.VPAuditLinks += (e.State.GetLinkValueForCity(r1.CityA) + e.State.GetLinkValueForCity(r1.CityB))
 		p.VPAuditLinks += (e.State.GetLinkValueForCity(r2.CityA) + e.State.GetLinkValueForCity(r2.CityB))
 
-		// Reward: Expansion pulse and spending bonus
-		reward += (0.05 + 0.015) * denseRewardScale // Double rail is expensive, capped at 15 + coal/iron
+		// Reward: Removed for purification
+		reward += 0.0 * denseRewardScale 
 
 
 
 	case ActionSell:
-		// Phase 1: Sell all industries reachable to the policy-selected merchant FIRST.
-		// This gives the agent control over which merchant bonuses it receives.
-		targetMerchantIdx := action.MerchantIdx
-		if targetMerchantIdx >= 0 && targetMerchantIdx < len(e.State.Merchants) {
-			tm := e.State.Merchants[targetMerchantIdx]
-			for i, tok := range e.State.Industries {
-				if tok.Owner != e.State.Active || tok.Flipped {
-					continue
-				}
-				if tok.Industry != CottonType && tok.Industry != ManufacturedGoodsType && tok.Industry != PotteryType {
-					continue
-				}
-				if !e.State.CanSellToMerchant(tok, targetMerchantIdx) {
-					continue
-				}
-				// Try merchant beer first (earns the bonus for this slot)
-				if tm.AvailableBeer > 0 {
-					e.State.Merchants[targetMerchantIdx].AvailableBeer--
-					if ev := player.EvaluateMerchantBeerBonus(e.State.Board.Cities[tm.CityID].Name); ev != nil {
-						if includeMetadata {
-							e.LastMetadata.ScoreEvents = append(e.LastMetadata.ScoreEvents, *ev)
-						}
-					}
-					e.State.FlipIndustry(i)
-					// Refresh tm reference after potential merchant state change
-					tm = e.State.Merchants[targetMerchantIdx]
-				} else if e.State.SourceBeer(tok.CityID, e.State.Active, true, true) {
-					e.State.FlipIndustry(i)
-				}
-			}
-		}
-
-		// Phase 2: Greedy sell to any remaining reachable merchant (for industries not sold in Phase 1)
+		// Version 4: Greedy Sell Heuristic
+		// Heuristic Priority: Merchant Beer > Other Player's Beer (Network) > Own Beer.
+		// We sell EVERY possible reachable industry in one action.
+		
 		for {
 			flippedAny := false
 			for i, tok := range e.State.Industries {
@@ -394,31 +394,66 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 				if tok.Industry != CottonType && tok.Industry != ManufacturedGoodsType && tok.Industry != PotteryType {
 					continue
 				}
+
+				// Find best merchant and beer source
+				bestMerchantIdx := -1
+				beerSource := -1 // 0=Merchant, 1=Other, 2=Own
+
 				for midx, m := range e.State.Merchants {
 					if !e.State.CanSellToMerchant(tok, midx) {
 						continue
 					}
+					
+					// Priority 1: Merchant Beer
 					if m.AvailableBeer > 0 {
-						e.State.Merchants[midx].AvailableBeer--
+						if bestMerchantIdx == -1 || beerSource > 0 {
+							bestMerchantIdx = midx
+							beerSource = 0
+						}
+					}
+					
+					// Priority 2: Other Player's Beer (Network)
+					if beerSource > 1 || bestMerchantIdx == -1 {
+						if e.State.HasNetworkBeer(tok.CityID, e.State.Active, false) {
+							bestMerchantIdx = midx
+							beerSource = 1
+						}
+					}
+
+					// Priority 3: Own Beer
+					if beerSource > 2 || bestMerchantIdx == -1 {
+						if e.State.HasNetworkBeer(tok.CityID, e.State.Active, true) {
+							bestMerchantIdx = midx
+							beerSource = 2
+						}
+					}
+				}
+
+				if bestMerchantIdx != -1 {
+					// Perform the sell
+					m := e.State.Merchants[bestMerchantIdx]
+					if beerSource == 0 {
+						e.State.Merchants[bestMerchantIdx].AvailableBeer--
 						if ev := player.EvaluateMerchantBeerBonus(e.State.Board.Cities[m.CityID].Name); ev != nil {
 							if includeMetadata {
 								e.LastMetadata.ScoreEvents = append(e.LastMetadata.ScoreEvents, *ev)
 							}
 						}
-						e.State.FlipIndustry(i)
-						flippedAny = true
-						break
-					} else if e.State.SourceBeer(tok.CityID, e.State.Active, true, true) {
-						e.State.FlipIndustry(i)
-						flippedAny = true
-						break
+					} else {
+						// SourceBeer handled internally by identifying network/owner beer
+						e.State.SourceBeer(tok.CityID, e.State.Active, true, true)
 					}
+					e.State.FlipIndustry(i)
+					flippedAny = true
 				}
 			}
-			if !flippedAny { break }
+			if !flippedAny {
+				break
+			}
 		}
 
 		e.LastMetadata.CardsSpent, _ = e.GetCardAndBurn(cardSlotIdx)
+		reward += 0.0 * denseRewardScale
 	}
 
 	// ── Turn sequence ─────────────────────────────────────────────────────────
@@ -487,11 +522,12 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 	pAfter := e.State.Players[active]
 	
 	// Dense reward uses AuditVP (immediate boosts for flips and links)
+	// v2.7: High-Contrast Scoring Signal (1 VP = 0.5 reward)
 	vpDelta := (pAfter.VPAuditIndustries - prevAuditIndustries) + 
                (pAfter.VPAuditLinks - prevAuditLinks)
 	incomeDelta := pAfter.IncomeLevel - prevIncome
 
-	reward += (float64(vpDelta)/100.0 + float64(incomeDelta)*0.01) * denseRewardScale
+	reward += (float64(vpDelta)*0.5 + float64(incomeDelta)*0.1) * denseRewardScale
 
 	// Safety Clamp: Ensure total reward per step is in [-1.0, 1.0]
 	if reward > 1.0 {
@@ -592,43 +628,57 @@ func (e *Env) BuildRoute(routeID int, owner PlayerId) {
 	}
 }
 
-// GetActualHandIndex converts a sorted observation index to the actual index in the player's Hand slice.
-func (e *Env) GetActualHandIndex(sortedIdx int) (int, bool) {
-	p := e.State.Players[e.State.Active]
-	if sortedIdx < 0 || sortedIdx >= len(p.Hand) {
-		return -1, false
-	}
-
-	type cardRef struct {
-		card Card
-		origIdx int
-	}
-	refs := make([]cardRef, len(p.Hand))
-	for i, c := range p.Hand {
-		refs[i] = cardRef{c, i}
-	}
-
-	// Sort using the exact same logic as in observation.go
-	sort.SliceStable(refs, func(i, j int) bool {
-		ti, tj := refs[i].card.Type, refs[j].card.Type
-		if ti != tj {
-			return ti < tj // CardType enum order: Location=0, Industry=1, WildIndustry=2, WildLocation=3
+// ChooseBestCardForAction implements the V3.0 heuristic for automated card selection.
+// Heuristic: IndustryCard(matching) > LocationCard(matching) > WildIndustry > WildLocation.
+// For non-build actions: Any Non-Wild > Any Wild.
+func (e *Env) ChooseBestCardForAction(p *PlayerState, action Action) int {
+	// First, identify which cards are actually valid for this specific action
+	var validSlots []int
+	for slotIdx := 0; slotIdx < len(p.Hand); slotIdx++ {
+		actualIdx, ok := e.GetActualHandIndex(slotIdx)
+		if !ok { continue }
+		if e.isValidActionWithCard(p, action, actualIdx) {
+			validSlots = append(validSlots, slotIdx)
 		}
-		return refs[i].card.CityID < refs[j].card.CityID
-	})
-
-	return refs[sortedIdx].origIdx, true
-}
-
-// GetCardAndBurn identifies the card at the sorted index and removes it from the player's hand.
-func (e *Env) GetCardAndBurn(sortedIdx int) ([]Card, bool) {
-	actualIdx, ok := e.GetActualHandIndex(sortedIdx)
-	if !ok {
-		return nil, false
 	}
-	card := e.State.Players[e.State.Active].Hand[actualIdx]
-	e.State.ReturnCard(e.State.Active, actualIdx)
-	return []Card{card}, true
+
+	if len(validSlots) == 0 {
+		return -1
+	}
+
+		// Priority scoring: lower is better (Location > Industry > Wild)
+		scoreSlot := func(slotIdx int) int {
+			actualIdx, _ := e.GetActualHandIndex(slotIdx)
+			card := p.Hand[actualIdx]
+			
+			if action.Type == ActionBuildIndustry {
+				if card.Type == LocationCard && card.CityID == int(action.CityID) { return 0 }
+				if card.Type == IndustryCard && card.Industry == action.IndustryType { return 1 }
+				if card.Type == WildLocationCard { return 2 }
+				if card.Type == WildIndustryCard { return 3 }
+				return 4 // Should not be reachable for Build if valid
+			}
+			
+			// For non-build actions: Location > Industry > Wild.
+			if card.Type == LocationCard { return 0 }
+			if card.Type == IndustryCard { return 1 }
+			if card.Type == WildLocationCard { return 2 }
+			if card.Type == WildIndustryCard { return 3 }
+			return 4
+		}
+
+	bestSlot := validSlots[0]
+	bestScore := scoreSlot(bestSlot)
+
+	for i := 1; i < len(validSlots); i++ {
+		s := scoreSlot(validSlots[i])
+		if s < bestScore {
+			bestScore = s
+			bestSlot = validSlots[i]
+		}
+	}
+
+	return bestSlot
 }
 
 

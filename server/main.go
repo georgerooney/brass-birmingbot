@@ -17,7 +17,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"fmt"
+
 
 	eng "brass_engine/engine"
 )
@@ -127,7 +127,10 @@ func buildStateResp(e *eng.Env, buf []float32, fullState bool) stateResp {
 	vpsMerc := make([]int, numPlayers)
 
 	for i, p := range e.State.Players {
-		vps[i] = p.VP
+		// v2.5: Consistent summation. p.VP is for end-of-game ranking, 
+		// but audit fields track live progress. During play, p.VP is usually 0 
+		// until ScoreEra is called.
+		vps[i] = p.VPAuditIndustries + p.VPAuditLinks
 		vpsInd[i] = p.VPAuditIndustries
 		vpsLink[i] = p.VPAuditLinks
 		consCoal[i] = p.ConsumedOpponentCoal
@@ -170,16 +173,14 @@ func (s *server) getActionNames(w http.ResponseWriter, r *http.Request) {
 	dummy := eng.NewEnv(2)
 	eng.EnsureActionRegistry(dummy.State.Board)
 
-	actionSize := eng.ActionSpaceSize
+	actionSize := eng.GetActionSpaceSize()
 	names := make([]string, actionSize)
 	for i := 0; i < actionSize; i++ {
-		baseID := i % 1500
-		slotID := i / 1500
-		if baseID < len(eng.ActionRegistry) {
-			a := eng.ActionRegistry[baseID]
-			names[i] = fmt.Sprintf("[Slot %d] %s", slotID, a.Name(dummy.State.Board))
+		if i < len(eng.ActionRegistry) {
+			a := eng.ActionRegistry[i]
+			names[i] = a.Name(dummy.State.Board)
 		} else {
-			names[i] = fmt.Sprintf("[Slot %d] Padding", slotID)
+			names[i] = "Padding"
 		}
 	}
 	writeJSON(w, names)
