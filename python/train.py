@@ -27,18 +27,10 @@ import torch # Just the base import, we'll use th inside functions
 from stable_baselines3.common import utils
 from stable_baselines3.common.callbacks import CheckpointCallback, BaseCallback
 from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor
+from config import CurriculumState, DynamicLRScheduler, get_args, PPO_N_STEPS, PPO_BATCH_SIZE, PPO_N_EPOCHS, PPO_GAMMA, PPO_GAE_LAMBDA, PPO_CLIP_RANGE, PPO_TARGET_KL, PPO_ENT_COEF, NET_ARCH
+from utils import DiagnosticCallback
 
-# --- Data Structures ---
-
-class CurriculumState:
-    """Simple picklable state for curriculum progress.
-    Separated from the Callback to avoid serializing the environment/processes.
-    """
-    def __init__(self, decay_steps: int = 5_000_000):
-        self.is_decaying = False
-        self.trigger_step = 0
-        self.decay_steps = decay_steps
-        self.num_timesteps = 0
+# --- Data Structures moved to config.py ---
 
 # Removed server import
 
@@ -52,7 +44,39 @@ def make_env_fn(rank: int, num_players: int):
         return env
     return _init
 
-# Using standard MlpPolicy from sb3-contrib for maximum stability
+class CardAttentionExtractor(BaseFeaturesExtractor):
+    def __init__(self, observation_space, hand_size: int = 8, card_width: int = 24):
+        total_dim = observation_space.shape[0]
+        hand_dim = hand_size * card_width
+        board_dim = total_dim - hand_dim
+        
+        # Output dim is total_dim to match old model shapes!
+        super().__init__(observation_space, total_dim)
+        
+        self.hand_size = hand_size
+        self.card_width = card_width
+        self.hand_dim = hand_dim
+        
+        # Small transformer for cards
+        self.card_embed = nn.Linear(card_width, 16)
+        encoder_layer = nn.TransformerEncoderLayer(d_model=16, nhead=1, dim_feedforward=32, batch_first=True)
+        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=1)
+        
+        # Project back to hand_dim so total output dim is board_dim + hand_dim = total_dim
+        self.card_expand = nn.Linear(16, hand_dim)
+        
+    def forward(self, observations: th.Tensor) -> th.Tensor:
+        board_obs = observations[:, :-self.hand_dim]
+        hand_obs = observations[:, -self.hand_dim:]
+        
+        hand_obs = hand_obs.view(-1, self.hand_size, self.card_width)
+        hand_embed = self.card_embed(hand_obs)
+        hand_trans = self.transformer(hand_embed)
+        hand_pooled = th.mean(hand_trans, dim=1)
+        
+        hand_expanded = self.card_expand(hand_pooled)
+        
+        return th.cat([board_obs, hand_expanded], dim=1)
 
 # --- Callbacks ---
 
@@ -131,132 +155,9 @@ class CurriculumCallback(BaseCallback):
             self.logger.record("train/rolling_avg_vp", np.mean(self.vp_history))
         return True
 
-class DynamicLRScheduler:
-    """Delayed LR decay based on curriculum trigger.
-    Defined as a class to be picklable without capturing the main() local scope.
-    """
-    def __init__(self, initial_lr: float, state: CurriculumState):
-        self.initial_lr = initial_lr
-        self.state = state
+# --- Schedulers moved to config.py ---
 
-    def __call__(self, progress_remaining: float) -> float:
-        if not self.state.is_decaying:
-            return self.initial_lr
-            
-        elapsed = self.state.num_timesteps - self.state.trigger_step
-        decay_progress = max(0, 1.0 - (elapsed / self.state.decay_steps))
-        return self.initial_lr * decay_progress
-
-def run_diagnostics(model_path: str, num_episodes: int, log_file: str, train_steps: int):
-    from sb3_contrib import MaskablePPO
-    from brass_env.env import BrassEnv
-    from collections import defaultdict
-    import os
-    
-    try:
-        env = BrassEnv(num_players=2)
-        model = MaskablePPO.load(model_path)
-        
-        move_types = defaultdict(int)
-        specific_moves = defaultdict(int)
-        
-        action_names = env.get_action_names()
-        
-        total_steps = 0
-        valid_link_count = 0
-        total_valid_link_prob = 0.0
-        steps_with_links = 0
-        
-        for _ in range(num_episodes):
-            obs, info = env.reset()
-            done = False
-            while not done:
-                masks = env.action_masks()
-                valid_actions = [i for i, m in enumerate(masks) if m]
-                for a in valid_actions:
-                    if action_names[a].startswith("Network"):
-                        valid_link_count += 1
-                
-                # Extract probabilities for links
-                obs_tensor = th.tensor(obs, dtype=th.float32).unsqueeze(0).to(model.device)
-                with th.no_grad():
-                    distribution = model.policy.get_distribution(obs_tensor)
-                    probs = distribution.distribution.probs.detach().cpu().numpy()[0]
-                
-                link_indices = [i for i, name in enumerate(action_names) if name.startswith("Network")]
-                valid_link_indices = [i for i in link_indices if masks[i]]
-                
-                if len(valid_link_indices) > 0:
-                    total_valid_link_prob += np.sum(probs[valid_link_indices])
-                    steps_with_links += 1
-                
-                # Manually sample based on policy to guarantee mask application
-                masked_probs = probs * masks
-                if np.sum(masked_probs) > 0:
-                    masked_probs = masked_probs / np.sum(masked_probs)
-                    action = np.random.choice(len(masked_probs), p=masked_probs)
-                else:
-                    action, _ = model.predict(obs, action_masks=masks, deterministic=False)
-                
-                action_name = action_names[action]
-                specific_moves[action_name] += 1
-                
-                if action_name.startswith("Network (Double)"):
-                    move_type = "Network (Double)"
-                elif action_name.startswith("Network"):
-                    move_type = "Network"
-                else:
-                    move_type = action_name.split()[0]
-                move_types[move_type] += 1
-                
-                obs, reward, terminated, truncated, info = env.step(action)
-                done = terminated or truncated
-                total_steps += 1
-                
-        sorted_types = sorted(move_types.items(), key=lambda x: x[1], reverse=True)
-        sorted_specific = sorted(specific_moves.items(), key=lambda x: x[1], reverse=True)[:10]
-        
-        with open(log_file, "a") as f:
-            f.write(f"\n--- Diagnostics at training step {train_steps} ---\n")
-            f.write(f"Total moves in {num_episodes} games: {total_steps}\n")
-            f.write(f"Average valid links available per step: {valid_link_count/total_steps:.2f}\n")
-            avg_link_prob = total_valid_link_prob / steps_with_links if steps_with_links > 0 else 0.0
-            f.write(f"Average policy prob of valid links: {avg_link_prob:.4f}\n")
-            f.write("Most common move types:\n")
-            for t, c in sorted_types:
-                f.write(f"  {t}: {c} ({c/total_steps:.2%})\n")
-            f.write("Top 10 specific moves:\n")
-            for m, c in sorted_specific:
-                f.write(f"  {m}: {c} ({c/total_steps:.2%})\n")
-            f.write("-" * 40 + "\n")
-            
-        # Clean up temp model file
-        os.remove(model_path)
-            
-    except Exception as e:
-        with open(log_file, "a") as f:
-            f.write(f"Error in diagnostics at step {train_steps}: {str(e)}\n")
-
-class DiagnosticCallback(BaseCallback):
-    def __init__(self, save_freq: int, num_episodes: int, log_file: str, verbose: int = 0):
-        super().__init__(verbose)
-        self.save_freq = save_freq
-        self.num_episodes = num_episodes
-        self.log_file = log_file
-        
-    def _on_step(self) -> bool:
-        if self.n_calls % self.save_freq == 0:
-            run_dir = os.path.dirname(self.log_file)
-            temp_path = os.path.join(run_dir, f"temp_diag_model_{self.num_timesteps}.zip")
-            self.model.save(temp_path)
-            
-            p = multiprocessing.Process(
-                target=run_diagnostics, 
-                args=(temp_path, self.num_episodes, self.log_file, self.num_timesteps)
-            )
-            p.start()
-            
-        return True
+# --- Diagnostics moved to utils.py ---
 
 # --- Main Logic ---
 
@@ -268,17 +169,7 @@ def main() -> None:
         
     import torch as th
     from sb3_contrib import MaskablePPO
-    parser = argparse.ArgumentParser(description="Train Brass Birmingham PPO agent")
-    parser.add_argument("--envs",    type=int,   default=32,      help="Parallel envs")
-    parser.add_argument("--steps",   type=int,   default=10_000_000, help="Total timesteps")
-    parser.add_argument("--lr",      type=float, default=0.0003,      help="Learning rate (default: 3e-4)")
-    parser.add_argument("--batch-size", type=int, default=4096,     help="Minibatch size")
-    parser.add_argument("--n-steps", type=int,   default=1024,     help="Rollout steps per env")
-    parser.add_argument("--players", type=int,   default=2,       help="Players per game")
-    parser.add_argument("--load",    type=str,   default=None,    help="Path to existing .zip model to resume from")
-    parser.add_argument("--run-name", type=str,  default=None,    help="Custom name for this run")
-    parser.add_argument("--no-server", action="store_true", help="Skip server launch")
-    args = parser.parse_args()
+    args = get_args()
 
     # Setup Directory Structure
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -301,9 +192,16 @@ def main() -> None:
         board_size = vec_env.get_attr('board_size')[0]
         print(f"Queried board size: {board_size}")
 
-        policy_kwargs = dict(
-            net_arch=dict(pi=[512, 256], vf=[512, 256]),
-        )
+        if args.use_transformer:
+            policy_kwargs = dict(
+                features_extractor_class=CardAttentionExtractor,
+                features_extractor_kwargs=dict(hand_size=8, card_width=24),
+                net_arch=NET_ARCH,
+            )
+        else:
+            policy_kwargs = dict(
+                net_arch=NET_ARCH,
+            )
 
         # n_steps = 1024 (rollout length, total batch = n_steps × n_envs)
         
@@ -316,27 +214,44 @@ def main() -> None:
 
         if args.load:
             print(f"Loading existing model from: {args.load}")
-            model = MaskablePPO.load(
-                args.load,
-                env=vec_env,
+            # Load the saved model to get its weights (uses its saved architecture)
+            loaded_model = MaskablePPO.load(args.load)
+            
+            print("Creating new model with target architecture...")
+            model = MaskablePPO(
+                "MlpPolicy",
+                vec_env,
+                n_steps=PPO_N_STEPS,
+                batch_size=PPO_BATCH_SIZE,
+                n_epochs=PPO_N_EPOCHS,
+                gamma=PPO_GAMMA,
+                gae_lambda=PPO_GAE_LAMBDA,
+                clip_range=PPO_CLIP_RANGE,
+                target_kl=PPO_TARGET_KL,
+                ent_coef=PPO_ENT_COEF,
                 learning_rate=lr_schedule,
                 policy_kwargs=policy_kwargs,
                 verbose=1,
+                device="cuda" if th.cuda.is_available() else "cpu",
                 tensorboard_log=str(tensorboard_dir),
             )
+            
+            print("Transferring weights (non-strict)...")
+            model.policy.load_state_dict(loaded_model.policy.state_dict(), strict=False)
+            del loaded_model
         else:
             print("Creating new PPO model.")
             model = MaskablePPO(
                 "MlpPolicy",
                 vec_env,
-                n_steps=256,
-                batch_size=256,
-                n_epochs=4,
-                gamma=0.99,
-                gae_lambda=0.95,
-                clip_range=0.2,
-                target_kl=0.03,
-                ent_coef=0.05,         # Increased entropy for exploration in large discrete space
+                n_steps=PPO_N_STEPS,
+                batch_size=PPO_BATCH_SIZE,
+                n_epochs=PPO_N_EPOCHS,
+                gamma=PPO_GAMMA,
+                gae_lambda=PPO_GAE_LAMBDA,
+                clip_range=PPO_CLIP_RANGE,
+                target_kl=PPO_TARGET_KL,
+                ent_coef=PPO_ENT_COEF,
                 learning_rate=args.lr,
                 policy_kwargs=policy_kwargs,
                 verbose=1,
