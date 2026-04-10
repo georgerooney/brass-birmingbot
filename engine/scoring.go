@@ -52,12 +52,12 @@ func (gs *GameState) ScoreEra(collectEvents bool) []ScoreEvent {
 			valA := gs.GetLinkValueForCity(route.CityA)
 			valB := gs.GetLinkValueForCity(route.CityB)
 			points := valA + valB
-			
+
 			owner := gs.RouteOwners[i]
 			p := gs.Players[owner]
 			p.VP += points
 			p.ScoringBreakdown["Links"] += points
-			
+
 			if collectEvents && points > 0 {
 				cityA := gs.Board.Cities[route.CityA].Name
 				cityB := gs.Board.Cities[route.CityB].Name
@@ -76,13 +76,13 @@ func (gs *GameState) ScoreEra(collectEvents bool) []ScoreEvent {
 		if tok.Flipped {
 			stat := IndustryCatalog[tok.Industry][tok.Level]
 			points := stat.VP
-			
+
 			p := gs.Players[tok.Owner]
 			p.VP += points
-			
+
 			indName := IndustryNames[tok.Industry]
 			p.ScoringBreakdown[indName] += points
-			
+
 			if collectEvents && points > 0 {
 				cityName := gs.Board.Cities[tok.CityID].Name
 				events = append(events, ScoreEvent{
@@ -225,7 +225,7 @@ func (gs *GameState) EndEraTransition() {
 	}
 	gs.Industries = remaining
 
-	// 4. Score all surviving Links for the transition bonus? 
+	// 4. Score all surviving Links for the transition bonus?
 	// Actually links are REMOVED (Board Wipe), but you get their points at the end of Canal.
 	// The VPAuditLinks already has those points from when they were built/adjacent-flipped.
 

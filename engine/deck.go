@@ -1,6 +1,5 @@
 package engine
 
-
 // DeckDistribution holds the specific card counts based on player count.
 type DeckDistribution struct {
 	NumPlayers int
@@ -90,14 +89,14 @@ func (gs *GameState) InitializeDeck() {
 	var deck []Card
 
 	for city, count := range dist.Locations {
-        if cityID, exists := gs.Board.NameMap[city]; exists {
-            for i := 0; i < count; i++ {
-                deck = append(deck, Card{
-                    Type:   LocationCard,
-                    CityID: int(cityID),
-                })
-            }
-        }
+		if cityID, exists := gs.Board.NameMap[city]; exists {
+			for i := 0; i < count; i++ {
+				deck = append(deck, Card{
+					Type:   LocationCard,
+					CityID: int(cityID),
+				})
+			}
+		}
 	}
 
 	for ind, count := range dist.Industries {
@@ -116,7 +115,7 @@ func (gs *GameState) InitializeDeck() {
 	}
 
 	gs.Deck = deck
-	
+
 	// Remove 1 card to discard pile at start of game
 	if len(gs.Deck) > 0 {
 		gs.Discard = append(gs.Discard, gs.Deck[len(gs.Deck)-1])

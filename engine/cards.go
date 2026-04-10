@@ -10,7 +10,7 @@ func (gs *GameState) ReturnCard(pID PlayerId, cardIdx int) {
 	}
 	card := p.Hand[cardIdx]
 	gs.Discard = append(gs.Discard, card)
-	
+
 	// Remove from slice
 	p.Hand = append(p.Hand[:cardIdx], p.Hand[cardIdx+1:]...)
 }
@@ -21,7 +21,7 @@ func (gs *GameState) DiscardMultipleCardsFromPlayer(pID PlayerId, count int, pri
 	if len(p.Hand) < count {
 		return nil, false
 	}
-	
+
 	var discarded []Card
 	for i := 0; i < count; i++ {
 		// Greedy priority selection: try each priority type in order
@@ -33,14 +33,16 @@ func (gs *GameState) DiscardMultipleCardsFromPlayer(pID PlayerId, count int, pri
 					break
 				}
 			}
-			if targetIdx != -1 { break }
+			if targetIdx != -1 {
+				break
+			}
 		}
-		
+
 		// Fallback to any card if priority not found
 		if targetIdx == -1 {
 			targetIdx = 0
 		}
-		
+
 		discarded = append(discarded, p.Hand[targetIdx])
 		gs.ReturnCard(pID, targetIdx)
 	}
@@ -54,7 +56,7 @@ func (gs *GameState) CanCardBeUsedForBuild(cityID CityID, ind IndustryType, pID 
 		return false
 	}
 	card := p.Hand[cardIdx]
-	
+
 	switch card.Type {
 	case LocationCard:
 		// Location Card: Build any industry in the city shown.

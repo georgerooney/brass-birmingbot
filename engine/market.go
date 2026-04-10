@@ -2,12 +2,12 @@ package engine
 
 // Market holds the resource market state for coal or iron.
 type Market struct {
-	Resource      Resource	`json:"resource"`
-	MaxPrice      int		`json:"max_price"`
-	Prices        []int 	`json:"prices"` // [0] = £1, [1] = £2...
-	Capacity      []int 	`json:"capacity"` // Max cubes at this price
-	CurrentCubes  []int 	`json:"current_cubes"` // Current cubes at this price
-	ExternalPrice int		`json:"external_price"`
+	Resource      Resource `json:"resource"`
+	MaxPrice      int      `json:"max_price"`
+	Prices        []int    `json:"prices"`        // [0] = £1, [1] = £2...
+	Capacity      []int    `json:"capacity"`      // Max cubes at this price
+	CurrentCubes  []int    `json:"current_cubes"` // Current cubes at this price
+	ExternalPrice int      `json:"external_price"`
 }
 
 // BuyFromMarket consumes resources from the market using least-expensive-first logic.

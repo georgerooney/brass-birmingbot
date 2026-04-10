@@ -18,7 +18,6 @@ import (
 	"sync"
 	"sync/atomic"
 
-
 	eng "brass_engine/engine"
 )
 
@@ -83,18 +82,18 @@ func mask2b64(mask []bool) string {
 // ─── Response types ───────────────────────────────────────────────────────────
 
 type stateResp struct {
-	ObsB64  string `json:"obs_b64"`  // base64(LE float32[])
-	MaskB64 string `json:"mask_b64"` // base64(bit-packed bools)
-	ObsSize int    `json:"obs_size"`
-	MaskSize int   `json:"mask_size"`
-	VPs     []int  `json:"vps"`
-	
+	ObsB64   string `json:"obs_b64"`  // base64(LE float32[])
+	MaskB64  string `json:"mask_b64"` // base64(bit-packed bools)
+	ObsSize  int    `json:"obs_size"`
+	MaskSize int    `json:"mask_size"`
+	VPs      []int  `json:"vps"`
+
 	// Audit/Diagnostic fields
-	VPsIndustries         []int `json:"vps_industries"`
-	VPsLinks              []int `json:"vps_links"`
-	ConsumedOpponentCoal  []int `json:"consumed_opponent_coal"`
-	ConsumedOpponentIron  []int `json:"consumed_opponent_iron"`
-	VPsMerchant           []int `json:"vps_merchant"`
+	VPsIndustries        []int `json:"vps_industries"`
+	VPsLinks             []int `json:"vps_links"`
+	ConsumedOpponentCoal []int `json:"consumed_opponent_coal"`
+	ConsumedOpponentIron []int `json:"consumed_opponent_iron"`
+	VPsMerchant          []int `json:"vps_merchant"`
 
 	State *eng.GameState `json:"state,omitempty"`
 }
@@ -127,8 +126,8 @@ func buildStateResp(e *eng.Env, buf []float32, fullState bool) stateResp {
 	vpsMerc := make([]int, numPlayers)
 
 	for i, p := range e.State.Players {
-		// v2.5: Consistent summation. p.VP is for end-of-game ranking, 
-		// but audit fields track live progress. During play, p.VP is usually 0 
+		// v2.5: Consistent summation. p.VP is for end-of-game ranking,
+		// but audit fields track live progress. During play, p.VP is usually 0
 		// until ScoreEra is called.
 		vps[i] = p.VPAuditIndustries + p.VPAuditLinks
 		vpsInd[i] = p.VPAuditIndustries
@@ -139,16 +138,16 @@ func buildStateResp(e *eng.Env, buf []float32, fullState bool) stateResp {
 	}
 
 	resp := stateResp{
-		ObsB64:   obs2b64(buf),
-		MaskB64:  mask2b64(mask),
-		ObsSize:  len(buf),
-		MaskSize: len(mask),
-		VPs:      vps,
-		VPsIndustries:       vpsInd,
-		VPsLinks:            vpsLink,
+		ObsB64:               obs2b64(buf),
+		MaskB64:              mask2b64(mask),
+		ObsSize:              len(buf),
+		MaskSize:             len(mask),
+		VPs:                  vps,
+		VPsIndustries:        vpsInd,
+		VPsLinks:             vpsLink,
 		ConsumedOpponentCoal: consCoal,
 		ConsumedOpponentIron: consIron,
-		VPsMerchant:         vpsMerc,
+		VPsMerchant:          vpsMerc,
 	}
 
 	if fullState {
@@ -237,7 +236,7 @@ func (s *server) stepEnv(w http.ResponseWriter, r *http.Request, id int64) {
 	}
 
 	var body struct {
-		Action            int     `json:"action"`
+		Action           int     `json:"action"`
 		DenseRewardScale float64 `json:"dense_reward_scale"`
 	}
 	// Default to 1.0 if not provided (backwards compatibility)

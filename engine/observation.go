@@ -32,12 +32,12 @@ const (
 	ObsMerchants  = 9
 
 	// Per-element widths
-	ObsRouteWidth = 6   // built(1) + owner_ohe(4) + subRoute(1)
-	ObsSlotWidth  = 24  // present(1) + owner_ohe(4) + industry_ohe(8) + level(1) + flipped(1) + res(3) + pad(6)
-	ObsCityWidth  = 12  // connectivity(1) + market_access(3) + proximity_res(3) + network_pres(1) + pad(4)
-	ObsCardWidth  = 24  // present(1) + type_ohe(4) + city_norm(1) + industry_ohe(8) + validity_mask(6) + expansion_val(1) + pad(3)
+	ObsRouteWidth  = 6  // built(1) + owner_ohe(4) + subRoute(1)
+	ObsSlotWidth   = 24 // present(1) + owner_ohe(4) + industry_ohe(8) + level(1) + flipped(1) + res(3) + pad(6)
+	ObsCityWidth   = 12 // connectivity(1) + market_access(3) + proximity_res(3) + network_pres(1) + pad(4)
+	ObsCardWidth   = 24 // present(1) + type_ohe(4) + city_norm(1) + industry_ohe(8) + validity_mask(6) + expansion_val(1) + pad(3)
 	ObsPlayerWidth = 28 // money_norm(1) + income_norm(1) + vp_norm(1) + spent_norm(1) + active(1) + tokens(7) + next_tiers(6) + wipe_vuln(6) + delta_income(1) + dev_cost(1) + audit_ind(1) + audit_link(1) + pad(1)
-	ObsMerchWidth = 5
+	ObsMerchWidth  = 5
 
 	// Coal: 7 price slots; Iron: 5 price slots
 	ObsCoalSlots = 7
@@ -124,7 +124,7 @@ func FillObservation(gs *GameState, buf []float32) {
 	off++
 	buf[off] = clampNorm(float32(gs.TotalIronOnBoard()), 20)
 	off++
-	
+
 	myBeer, oppBeer, mercBeer := gs.GetBeerSplit(gs.Active)
 	buf[off] = clampNorm(float32(myBeer), 5)
 	off++
@@ -147,10 +147,10 @@ func FillObservation(gs *GameState, buf []float32) {
 	// Remaining players are filled in turn-sequence order relative to the active player.
 	for relPid := 0; relPid < ObsMaxPlayers; relPid++ {
 		base := ObsMetaEnd + relPid*ObsPlayerWidth
-		
+
 		// Map relative block index back to absolute player ID
 		absPid := (int(gs.Active) + relPid) % gs.NumPlayers
-		
+
 		if relPid >= gs.NumPlayers {
 			// Absent player — leave zeros
 			continue
@@ -255,17 +255,23 @@ func FillObservation(gs *GameState, buf []float32) {
 			break
 		}
 		base := ObsRouteEnd + i*ObsCityWidth
-		
+
 		buf[base+0] = clampNorm(float32(len(gs.Board.Adj[CityID(i)])), 6)
-		if gs.IsMerchantConnectedForIndustry(CityID(i), CottonType) { buf[base+1] = 1 }
-		if gs.IsMerchantConnectedForIndustry(CityID(i), ManufacturedGoodsType) { buf[base+2] = 1 }
-		if gs.IsMerchantConnectedForIndustry(CityID(i), BreweryType) { buf[base+3] = 1 }
-		
+		if gs.IsMerchantConnectedForIndustry(CityID(i), CottonType) {
+			buf[base+1] = 1
+		}
+		if gs.IsMerchantConnectedForIndustry(CityID(i), ManufacturedGoodsType) {
+			buf[base+2] = 1
+		}
+		if gs.IsMerchantConnectedForIndustry(CityID(i), BreweryType) {
+			buf[base+3] = 1
+		}
+
 		distMyCoal, distAnyCoal, distAnyIron := gs.CalculateEconomicDistances(CityID(i), gs.Active)
 		buf[base+4] = clampNorm(float32(distMyCoal), 10)
 		buf[base+5] = clampNorm(float32(distAnyCoal), 10)
 		buf[base+6] = clampNorm(float32(distAnyIron), 1) // Iron is binary availability
-		
+
 		if gs.IsInNetwork(gs.Active, CityID(i)) {
 			buf[base+7] = 1
 		}
@@ -318,7 +324,7 @@ func FillObservation(gs *GameState, buf []float32) {
 	hand := gs.Players[gs.Active].Hand
 	sortedHand := make([]Card, len(hand))
 	copy(sortedHand, hand)
-	
+
 	// Sort: Location > Industry > WildIndustry > WildLocation
 	sort.SliceStable(sortedHand, func(i, j int) bool {
 		ti, tj := sortedHand[i].Type, sortedHand[j].Type
@@ -337,10 +343,14 @@ func FillObservation(gs *GameState, buf []float32) {
 
 		buf[base+0] = 1 // card present
 		switch c.Type {
-		case LocationCard:     buf[base+1] = 1
-		case IndustryCard:     buf[base+2] = 1
-		case WildIndustryCard: buf[base+3] = 1
-		case WildLocationCard: buf[base+4] = 1
+		case LocationCard:
+			buf[base+1] = 1
+		case IndustryCard:
+			buf[base+2] = 1
+		case WildIndustryCard:
+			buf[base+3] = 1
+		case WildLocationCard:
+			buf[base+4] = 1
 		}
 
 		if c.Type == LocationCard || c.Type == WildLocationCard {
@@ -351,13 +361,23 @@ func FillObservation(gs *GameState, buf []float32) {
 		}
 
 		// Validity Mask (Build, Network, Develop, Sell, Loan, Pass)
-		if gs.CanCardAction(c, ActionBuildIndustry) { buf[base+14]=1 }
-		if gs.CanCardAction(c, ActionNetwork)      { buf[base+15]=1 }
-		if gs.CanCardAction(c, ActionDevelop)        { buf[base+16]=1 }
-		if gs.CanCardAction(c, ActionSell)           { buf[base+17]=1 }
-		if gs.CanCardAction(c, ActionLoan)           { buf[base+18]=1 }
+		if gs.CanCardAction(c, ActionBuildIndustry) {
+			buf[base+14] = 1
+		}
+		if gs.CanCardAction(c, ActionNetwork) {
+			buf[base+15] = 1
+		}
+		if gs.CanCardAction(c, ActionDevelop) {
+			buf[base+16] = 1
+		}
+		if gs.CanCardAction(c, ActionSell) {
+			buf[base+17] = 1
+		}
+		if gs.CanCardAction(c, ActionLoan) {
+			buf[base+18] = 1
+		}
 		buf[base+19] = 1 // Always can pass
-		
+
 		buf[base+20] = clampNorm(float32(gs.GetNetworkExpansionCount(c, gs.Active)), 10)
 	}
 	off = ObsTotalSize
@@ -466,19 +486,24 @@ func (gs *GameState) CalculateEconomicDistances(city CityID, pID PlayerId) (myCo
 	// 1. Coal Distances
 	gs.bfsGen++
 	gs.bfsQueue = gs.bfsQueue[:0]
-	type step struct { city CityID; dist int }
+	type step struct {
+		city CityID
+		dist int
+	}
 	queue := []step{{city, 0}}
 	gs.bfsVisited[city] = gs.bfsGen
-	
+
 	myCoal = 10
 	anyCoal = 10
-	
+
 	head := 0
 	for head < len(queue) {
 		curr := queue[head]
 		head++
-		
-		if curr.dist >= 10 { continue }
+
+		if curr.dist >= 10 {
+			continue
+		}
 
 		for _, tok := range gs.Industries {
 			if tok.CityID == curr.city && tok.Industry == CoalMineType && tok.Coal > 0 {
@@ -490,21 +515,27 @@ func (gs *GameState) CalculateEconomicDistances(city CityID, pID PlayerId) (myCo
 				}
 			}
 		}
-		
-		if myCoal != 10 && anyCoal != 10 { break }
+
+		if myCoal != 10 && anyCoal != 10 {
+			break
+		}
 
 		for _, routeID := range gs.Board.Adj[curr.city] {
 			r := gs.Board.Routes[routeID]
-			if !gs.RouteBuilt[routeID] { continue }
+			if !gs.RouteBuilt[routeID] {
+				continue
+			}
 			next := r.CityA
-			if next == curr.city { next = r.CityB }
+			if next == curr.city {
+				next = r.CityB
+			}
 			if gs.bfsVisited[next] != gs.bfsGen {
 				gs.bfsVisited[next] = gs.bfsGen
-				queue = append(queue, step{next, curr.dist+1})
+				queue = append(queue, step{next, curr.dist + 1})
 			}
 		}
 	}
-	
+
 	// 2. Iron Availability (Binary)
 	for _, tok := range gs.Industries {
 		if tok.Industry == IronWorksType && tok.Iron > 0 {
@@ -512,7 +543,7 @@ func (gs *GameState) CalculateEconomicDistances(city CityID, pID PlayerId) (myCo
 			break
 		}
 	}
-	
+
 	return
 }
 
@@ -535,7 +566,9 @@ func (gs *GameState) CanCardAction(c Card, actionType ActionType) bool {
 }
 
 func (gs *GameState) GetNetworkExpansionCount(c Card, pID PlayerId) int {
-	if c.Type != IndustryCard { return 0 }
+	if c.Type != IndustryCard {
+		return 0
+	}
 	count := 0
 	// Count how many cities in our current network (or adjunct) accept this industry
 	for i, city := range gs.Board.Cities {
@@ -558,7 +591,9 @@ func (gs *GameState) GetNetworkExpansionCount(c Card, pID PlayerId) int {
 						empty = false
 					}
 				}
-				if empty { count++ }
+				if empty {
+					count++
+				}
 			}
 		}
 	}

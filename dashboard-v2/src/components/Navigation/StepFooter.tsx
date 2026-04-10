@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, TrendingUp, SkipBack, SkipForward, Flag } from 'lucide-react';
-import type { Step, EngineState } from '../../types';
+import type { Step, EngineState, City } from '../../types';
 import { cn } from '../../utils';
 
 interface StepFooterProps {
@@ -14,10 +14,10 @@ interface StepFooterProps {
   onJumpToEndGame: () => void;
 }
 
-export const StepFooter: React.FC<StepFooterProps> = ({ 
-  replayTrace, 
-  currentStep, 
-  onStepChange, 
+export const StepFooter: React.FC<StepFooterProps> = ({
+  replayTrace,
+  currentStep,
+  onStepChange,
   currentState,
   onJumpToStart,
   onJumpToEndCanal,
@@ -27,29 +27,29 @@ export const StepFooter: React.FC<StepFooterProps> = ({
   if (!step) return null;
 
   return (
-    <motion.footer 
+    <motion.footer
       initial={{ y: 200 }} animate={{ y: 0 }} exit={{ y: 200 }}
       className="p-6 bg-black/80 backdrop-blur-3xl border-t border-white/5 shadow-2xl overflow-x-auto custom-scrollbar"
     >
       <div className="min-w-max flex items-center gap-8 pb-2">
         <div className="flex gap-1.5 shrink-0 border-r border-white/5 pr-6">
-          <button 
+          <button
             onClick={onJumpToStart}
             title="Jump to Start"
             className="p-2 bg-white/5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
           >
             <SkipBack className="w-4 h-4" />
           </button>
-          
+
           <div className="flex gap-1 bg-white/5 p-1 rounded-xl">
-            <button 
+            <button
               onClick={() => onStepChange(Math.max(0, currentStep - 1))}
               className="p-2.5 rounded-lg text-white disabled:opacity-20 hover:bg-white/10"
               disabled={currentStep === 0}
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
-            <button 
+            <button
               onClick={() => onStepChange(Math.min(replayTrace.length - 1, currentStep + 1))}
               className="p-2.5 bg-violet-600 rounded-lg text-white disabled:opacity-20 hover:bg-violet-500 shadow-lg shadow-violet-500/20"
               disabled={currentStep === replayTrace.length - 1}
@@ -58,7 +58,7 @@ export const StepFooter: React.FC<StepFooterProps> = ({
             </button>
           </div>
 
-          <button 
+          <button
             onClick={onJumpToEndCanal}
             title="Jump to End of Canal"
             className="p-2 bg-white/5 rounded-lg text-violet-400 hover:text-violet-300 hover:bg-violet-500/10 transition-colors"
@@ -66,7 +66,7 @@ export const StepFooter: React.FC<StepFooterProps> = ({
             <Flag className="w-4 h-4" />
           </button>
 
-          <button 
+          <button
             onClick={onJumpToEndGame}
             title="Jump to End of Game"
             className="p-2 bg-white/5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
@@ -92,9 +92,9 @@ export const StepFooter: React.FC<StepFooterProps> = ({
             </div>
           </div>
           <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
-            <motion.div 
-              className="h-full bg-violet-500" 
-              animate={{ width: `${((currentStep + 1) / replayTrace.length) * 100}%` }} 
+            <motion.div
+              className="h-full bg-violet-500"
+              animate={{ width: `${((currentStep + 1) / replayTrace.length) * 100}%` }}
             />
           </div>
         </div>
@@ -122,14 +122,14 @@ export const StepFooter: React.FC<StepFooterProps> = ({
                   const isLoc = card.type === 1 || card.type === 3;
                   const INDUSTRY_NAMES = ["Cotton", "Coal", "Iron", "Pottery", "Goods", "Beer"];
                   const indName = INDUSTRY_NAMES[card.industry] || "Any";
-                  const cityName = currentState?.board?.Cities?.find((c: any) => c.ID === card.city_id)?.Name || "Any";
-                  const tooltip = isWild 
-                    ? (isLoc ? "Wild Location" : "Wild Industry") 
+                  const cityName = currentState?.board?.Cities?.find((c: City) => c.ID === card.city_id)?.Name || "Any";
+                  const tooltip = isWild
+                    ? (isLoc ? "Wild Location" : "Wild Industry")
                     : (isLoc ? `Location: ${cityName}` : `Industry: ${indName}`);
 
                   return (
-                    <div 
-                      key={i} 
+                    <div
+                      key={i}
                       title={tooltip}
                       className={cn(
                         "w-5 h-7 rounded border border-white/10 flex items-center justify-center text-[10px] font-black shadow-lg cursor-help transition-transform hover:scale-110",
@@ -162,8 +162,8 @@ export const StepFooter: React.FC<StepFooterProps> = ({
               <div key={pId} className="w-56 shrink-0">
                   <div className={cn(
                       "border p-3 rounded-xl min-h-[140px] flex flex-col transition-all",
-                      pId === 0 
-                          ? (isActor ? "bg-violet-500/10 border-violet-500/40" : "bg-violet-900/5 border-violet-900/10 grayscale-[0.5]") 
+                      pId === 0
+                          ? (isActor ? "bg-violet-500/10 border-violet-500/40" : "bg-violet-900/5 border-violet-900/10 grayscale-[0.5]")
                           : (isActor ? "bg-pink-500/10 border-pink-500/40" : "bg-pink-900/5 border-pink-900/10 grayscale-[0.5]")
                   )}>
                       <div className="flex justify-between items-center mb-2">

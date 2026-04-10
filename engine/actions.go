@@ -35,6 +35,7 @@ var registryOnce sync.Once
 func EnsureActionRegistry(board *MapGraph) {
 	registryOnce.Do(func() { BuildActionRegistry(board) })
 }
+
 // It iterates the static constraints (e.g. valid slots in cities) to
 // generate the ultra-lean flattened 1D action space integer list.
 func BuildActionRegistry(board *MapGraph) {
@@ -67,11 +68,11 @@ func BuildActionRegistry(board *MapGraph) {
 			continue
 		}
 		ActionRegistry = append(ActionRegistry, Action{
-			ID:       id,
-			Type:     ActionNetwork,
-			RouteID:  route.ID,
-			RouteID2: -1,
-			SlotIndex: -1,
+			ID:          id,
+			Type:        ActionNetwork,
+			RouteID:     route.ID,
+			RouteID2:    -1,
+			SlotIndex:   -1,
 			MerchantIdx: -1,
 		})
 		id++
@@ -115,11 +116,11 @@ func BuildActionRegistry(board *MapGraph) {
 	// 4. Sell (1 Action)
 	// A singular "greedy sell" action. The engine's heuristic calculates the most profitable valid sale sequence.
 	ActionRegistry = append(ActionRegistry, Action{
-		ID: id, 
-		Type: ActionSell,
-		SlotIndex: -1,
-		RouteID: -1,
-		RouteID2: -1,
+		ID:          id,
+		Type:        ActionSell,
+		SlotIndex:   -1,
+		RouteID:     -1,
+		RouteID2:    -1,
 		MerchantIdx: -1,
 	})
 	id++
@@ -142,11 +143,11 @@ func BuildActionRegistry(board *MapGraph) {
 				continue
 			}
 			ActionRegistry = append(ActionRegistry, Action{
-				ID:       id,
-				Type:     ActionNetworkDouble,
-				RouteID:  board.Routes[i].ID,
-				RouteID2: board.Routes[j].ID,
-				SlotIndex: -1,
+				ID:          id,
+				Type:        ActionNetworkDouble,
+				RouteID:     board.Routes[i].ID,
+				RouteID2:    board.Routes[j].ID,
+				SlotIndex:   -1,
 				MerchantIdx: -1,
 			})
 			id++

@@ -1,9 +1,9 @@
 package engine
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
-	_ "embed"
 	"sync"
 )
 
@@ -52,12 +52,12 @@ type City struct {
 }
 
 type Route struct {
-	ID        int
-	CityA     CityID
-	CityB     CityID
-	Type      string // For now keep it as string "both", "rail_only", "canal_only"
-	IsSubRoute bool  // If true, this route is handled implicitly by a parent route
-	SubRoutes []int // For hyperedges (e.g. FB2 injection)
+	ID         int
+	CityA      CityID
+	CityB      CityID
+	Type       string // For now keep it as string "both", "rail_only", "canal_only"
+	IsSubRoute bool   // If true, this route is handled implicitly by a parent route
+	SubRoutes  []int  // For hyperedges (e.g. FB2 injection)
 }
 
 type MapGraph struct {
@@ -128,7 +128,7 @@ func (m *MapGraph) loadMap() {
 	}
 
 	routeIDCounter := 0
-	
+
 	addRoute := func(sourceName, targetName, edgeType string) int {
 		srcID, ok1 := m.NameMap[sourceName]
 		destID, ok2 := m.NameMap[targetName]
@@ -157,13 +157,13 @@ func (m *MapGraph) loadMap() {
 		routeID := addRoute(edge.Source, edge.Target, edge.Type)
 
 		// Farm Brewery South (FB2) Hyperedge interception
-		if (edge.Source == "Kidderminster" && edge.Target == "Worcester") || 
-		   (edge.Source == "Worcester" && edge.Target == "Kidderminster") {
-			
+		if (edge.Source == "Kidderminster" && edge.Target == "Worcester") ||
+			(edge.Source == "Worcester" && edge.Target == "Kidderminster") {
+
 			// Implicitly create connections between Kidderminster <-> FB2 and Worcester <-> FB2
 			subRoute1 := addRoute("Kidderminster", "Farm Brewery South", edge.Type)
 			subRoute2 := addRoute("Worcester", "Farm Brewery South", edge.Type)
-			
+
 			// Map these injected subRoutes back into the primary logical route
 			m.Routes[subRoute1].IsSubRoute = true
 			m.Routes[subRoute2].IsSubRoute = true
@@ -180,13 +180,20 @@ func (m *MapGraph) loadMap() {
 	// Helper converter
 	stringToInd := func(s string) IndustryType {
 		switch s {
-		case "cotton": return CottonType
-		case "goods": return ManufacturedGoodsType
-		case "coal": return CoalMineType
-		case "iron": return IronWorksType
-		case "pottery": return PotteryType
-		case "brewery": return BreweryType
-		default: return -1
+		case "cotton":
+			return CottonType
+		case "goods":
+			return ManufacturedGoodsType
+		case "coal":
+			return CoalMineType
+		case "iron":
+			return IronWorksType
+		case "pottery":
+			return PotteryType
+		case "brewery":
+			return BreweryType
+		default:
+			return -1
 		}
 	}
 
@@ -217,7 +224,7 @@ func (m *MapGraph) HasConnection(gs *GameState, start, target CityID) bool {
 	// Use GameState's BFS generation for speed/safety
 	gs.bfsGen++
 	gs.bfsQueue = gs.bfsQueue[:0]
-	
+
 	gs.bfsQueue = append(gs.bfsQueue, start)
 	gs.bfsVisited[start] = gs.bfsGen
 
@@ -229,7 +236,7 @@ func (m *MapGraph) HasConnection(gs *GameState, start, target CityID) bool {
 			if !gs.RouteBuilt[routeID] {
 				continue
 			}
-			
+
 			route := m.Routes[routeID]
 			var next CityID
 			if route.CityA == curr {

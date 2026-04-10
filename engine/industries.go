@@ -1,9 +1,9 @@
 package engine
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
-	_ "embed"
 )
 
 //go:embed industry_tiles.json
@@ -27,7 +27,6 @@ type IndustryStat struct {
 
 // IndustryTilesJSON removed as we parse directly into map
 
-
 var IndustryCatalog map[IndustryType]map[int]IndustryStat
 var IndustryMaxLevel map[IndustryType]int
 
@@ -48,13 +47,20 @@ func LoadIndustryCatalog() {
 
 	stringToInd := func(s string) IndustryType {
 		switch s {
-		case "cotton": return CottonType
-		case "goods": return ManufacturedGoodsType
-		case "coal": return CoalMineType
-		case "iron": return IronWorksType
-		case "pottery": return PotteryType
-		case "brewery": return BreweryType
-		default: return -1
+		case "cotton":
+			return CottonType
+		case "goods":
+			return ManufacturedGoodsType
+		case "coal":
+			return CoalMineType
+		case "iron":
+			return IronWorksType
+		case "pottery":
+			return PotteryType
+		case "brewery":
+			return BreweryType
+		default:
+			return -1
 		}
 	}
 

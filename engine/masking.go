@@ -1,7 +1,5 @@
 package engine
 
-
-
 func (env *Env) GetActionMask() []bool {
 	EnsureActionRegistry(env.State.Board)
 
@@ -77,7 +75,7 @@ func (env *Env) isValidActionWithCard(p *PlayerState, action Action, cardIdx int
 		// 3. Slot Availability and Overbuild
 		slotIdx := action.SlotIndex
 		overbuild := env.State.IsOverbuild(action.CityID, slotIdx, action.IndustryType, p.ID)
-		
+
 		// If the slot is filled by someone else and it's NOT an overbuild, it's blocked.
 		// GetTokenAtSlot confirms if the slot is currently occupied.
 		tok := env.State.GetTokenAtSlot(action.CityID, slotIdx)
@@ -90,9 +88,13 @@ func (env *Env) isValidActionWithCard(p *PlayerState, action Action, cardIdx int
 			if tok != nil && tok.Owner != p.ID {
 				// Rule: May only overbuild opponent's coal/iron if board cubes AND market are empty.
 				if tok.Industry == CoalMineType {
-					 if !env.State.IsResourceExhausted(Coal) { return false }
+					if !env.State.IsResourceExhausted(Coal) {
+						return false
+					}
 				} else if tok.Industry == IronWorksType {
-					 if !env.State.IsResourceExhausted(Iron) { return false }
+					if !env.State.IsResourceExhausted(Iron) {
+						return false
+					}
 				} else {
 					// Cannot overbuild other opponent industries (Cotton, etc.)
 					return false
@@ -109,10 +111,12 @@ func (env *Env) isValidActionWithCard(p *PlayerState, action Action, cardIdx int
 		coalCost := 0
 		if stat.CostCoal > 0 {
 			cost, possible := env.State.PredictCoalCost(action.CityID, stat.CostCoal, p.ID)
-			if !possible { return false }
+			if !possible {
+				return false
+			}
 			coalCost = cost
 		}
-		
+
 		ironCost := 0
 		if stat.CostIron > 0 {
 			ironCost = env.State.PredictIronCost(stat.CostIron, p.ID)
@@ -202,7 +206,6 @@ func (env *Env) isValidActionWithCard(p *PlayerState, action Action, cardIdx int
 		}
 		// Full check (2× BFS for coal, 1× BFS for beer, money with coal cost)
 		return env.State.CanBuildDoubleRail(action.RouteID, action.RouteID2, p.ID)
-
 
 	case ActionDevelop:
 		// Develop costs 1 Iron per tile (1 or 2 tiles)

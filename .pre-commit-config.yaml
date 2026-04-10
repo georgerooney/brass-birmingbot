@@ -1,0 +1,41 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+
+  # Python: Ruff for linting and formatting
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.3.4
+    hooks:
+      - id: ruff
+        args: [ --fix ]
+      - id: ruff-format
+
+  # Go: golangci-lint
+  - repo: https://github.com/golangci/golangci-lint
+    rev: v1.57.2
+    hooks:
+      - id: golangci-lint
+        args: [--timeout=5m]
+
+  # Go: gofmt (Local hook)
+  - repo: local
+    hooks:
+      - id: gofmt
+        name: gofmt
+        entry: gofmt -w
+        language: system
+        files: \.go$
+
+      # Dashboard: ESLint (Local hook to run in subdirectory)
+      # Strips 'dashboard-v2/' prefix from file paths because we cd into the directory.
+      - id: eslint-dashboard
+        name: eslint-dashboard
+        entry: bash -c 'cd dashboard-v2 && npx eslint "${@#dashboard-v2/}"' _
+        language: system
+        files: ^dashboard-v2/.*\.(ts|tsx|js|jsx)$
+        types: [file]

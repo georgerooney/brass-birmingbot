@@ -266,12 +266,12 @@ func (gs *GameState) CanBuildDoubleRail(r1, r2 int, playerID PlayerId) bool {
 	if !possible {
 		return false
 	}
-	
+
 	// Check if we can source 1 beer from startCity
 	if !gs.PredictBeerPossible(startCity, playerID, true, false, true) {
 		return false
 	}
-	
+
 	if p.Money < (15 + cost) {
 		return false
 	}

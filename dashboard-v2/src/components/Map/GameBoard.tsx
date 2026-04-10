@@ -14,8 +14,8 @@ interface GameBoardProps {
 export const GameBoard: React.FC<GameBoardProps> = ({ currentState, analysisData, viewMode, showCityLabels }) => {
   return (
     <div className="flex-1 overflow-hidden relative group p-8">
-      <svg 
-        viewBox="0 0 1000 900" 
+      <svg
+        viewBox="0 0 1000 900"
         className="w-full h-full drop-shadow-2xl"
         style={{ filter: 'drop-shadow(0 0 10px rgba(0,0,0,0.5))' }}
       >
@@ -24,20 +24,20 @@ export const GameBoard: React.FC<GameBoardProps> = ({ currentState, analysisData
           const cityA = currentState?.board?.Cities[route.CityA];
           const cityB = currentState?.board?.Cities[route.CityB];
           if (!cityA || !cityB) return null;
-          
+
           const posA = COORDS[cityA.Name] || { x: 0, y: 0 };
           const posB = COORDS[cityB.Name] || { x: 0, y: 0 };
-          
+
           const stats = analysisData?.routes[idx];
           const freq = stats ? stats.built / (analysisData?.num_episodes || 1) : 0;
           const winRate = stats?.built > 0 ? stats.win_built / stats.built : 0;
-          
+
           const isBuilt = currentState?.route_built?.[idx] || false;
           const owner = currentState?.route_owners?.[idx] ?? -1;
 
           return (
             <g key={idx} className="route-group">
-              <line 
+              <line
                 x1={posA.x} y1={posA.y} x2={posB.x} y2={posB.y}
                 stroke={viewMode === 'heatmap' ? `rgba(234, 179, 8, ${0.1 + freq * 0.9})` : (isBuilt ? (owner === 0 ? '#8b5cf6' : '#ec4899') : "rgba(255,255,255,0.12)")}
                 strokeWidth={viewMode === 'heatmap' ? 4 + freq * 10 : (isBuilt ? 4 : 2)}
@@ -57,10 +57,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ currentState, analysisData
         ))}
 
         {/* Merchant Slots (NONE or Active) */}
-        {viewMode === 'replay' && currentState?.board?.Cities?.filter(c => c.Type === "Merchant").map((city, cIdx) => {
+        {viewMode === 'replay' && currentState?.board?.Cities?.filter(c => c.Type === "Merchant").map((city) => {
           const pos = COORDS[city.Name];
           if (!pos) return null;
-          
+
           const citySlots = currentState.merchants.filter(m => m.city_id === city.ID);
           const INDUSTRY_ABBRS = ["CT", "CL", "IR", "PT", "MG", "BY"];
 
@@ -74,12 +74,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ currentState, analysisData
                 return (
                   <g key={`${city.ID}-slot-${sIdx}`} transform={`translate(${offset}, 0)`}>
                     {/* Base Slot Badge */}
-                    <rect x={-22} y={-22} width={44} height={44} rx={8} 
-                      fill={isPlaceholder ? "#0f172a" : "#1e293b"} 
-                      stroke={isPlaceholder ? "rgba(255,255,255,0.1)" : "#fbbf24"} 
-                      strokeWidth={isPlaceholder ? 1 : 2} 
+                    <rect x={-22} y={-22} width={44} height={44} rx={8}
+                      fill={isPlaceholder ? "#0f172a" : "#1e293b"}
+                      stroke={isPlaceholder ? "rgba(255,255,255,0.1)" : "#fbbf24"}
+                      strokeWidth={isPlaceholder ? 1 : 2}
                     />
-                    
+
                     {isPlaceholder ? (
                       <text y={4} textAnchor="middle" fill="rgba(255,255,255,0.15)" className="text-[10px] font-black uppercase tracking-tighter">NONE</text>
                     ) : (
@@ -115,22 +115,22 @@ export const GameBoard: React.FC<GameBoardProps> = ({ currentState, analysisData
           Object.entries(COORDS).map(([name, pos]) => {
             const city = currentState?.board?.Cities?.find(c => c.Name === name);
             if (!city || city.Type === "Merchant") return null;
-            
+
             const slots = city.BuildSlots || [];
             const INDUSTRY_ABBRS = ["CT", "CL", "IR", "PT", "MG", "BY"];
             const INDUSTRY_NAMES = ["Cotton", "Coal", "Iron", "Pottery", "Manufactured Goods", "Brewery"];
-            
+
             return (
               <g key={name} className="city-label">
                 {/* Central Interaction Plate for City Name */}
                 <g className="group cursor-help">
-                  <circle 
-                    cx={pos.x} cy={pos.y} r={28} 
-                    fill="rgba(255,255,255,0.01)" 
-                    className="pointer-events-auto" 
+                  <circle
+                    cx={pos.x} cy={pos.y} r={28}
+                    fill="rgba(255,255,255,0.01)"
+                    className="pointer-events-auto"
                   />
-                  <text 
-                    x={pos.x} y={pos.y + 45} textAnchor="middle" fill="white" 
+                  <text
+                    x={pos.x} y={pos.y + 45} textAnchor="middle" fill="white"
                     className={cn(
                       "text-[12px] font-bold transition-opacity bg-black/80 px-2 rounded whitespace-nowrap pointer-events-none",
                       showCityLabels ? "opacity-100" : "opacity-0 group-hover:opacity-100"
@@ -146,11 +146,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ currentState, analysisData
                   const builtIndustry = currentState?.industries?.find(tok => tok.city_id === city.ID && tok.slot_idx === sIdx);
                   const slotAbbr = allowedTypes.map(t => INDUSTRY_ABBRS[t] || "?").join('/');
                   const slotFull = allowedTypes.map(t => INDUSTRY_NAMES[t] || "Unknown").join(' or ');
-                  
+
                   if (builtIndustry) {
                     return (
-                      <g key={sIdx} transform={`translate(${pos.x + dx}, ${pos.y + dy})`} className="cursor-help" title={`${INDUSTRY_NAMES[builtIndustry.industry]} (Level ${builtIndustry.level})`}>
-                        <rect 
+                      <g key={sIdx} transform={`translate(${pos.x + dx}, ${pos.y + dy})`} className="cursor-help">
+                        <title>{`${INDUSTRY_NAMES[builtIndustry.industry]} (Level ${builtIndustry.level})`}</title>
+                        <rect
                            x={-16} y={-16} width={32} height={32} rx={6}
                            fill={builtIndustry.owner === 0 ? '#8b5cf6' : '#ec4899'}
                            stroke={builtIndustry.flipped ? '#fbbf24' : 'white'}
@@ -187,7 +188,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ currentState, analysisData
                   }
 
                   return (
-                    <g key={sIdx} transform={`translate(${pos.x + dx}, ${pos.y + dy})`} className="cursor-help" title={`Empty Slot: ${slotFull}`}>
+                    <g key={sIdx} transform={`translate(${pos.x + dx}, ${pos.y + dy})`} className="cursor-help">
+                      <title>{`Empty Slot: ${slotFull}`}</title>
                       <rect x={-14} y={-14} width={28} height={28} rx={6} fill="#1e293b" stroke="rgba(255,255,255,0.15)" strokeWidth={0.8} />
                       <text y={3} textAnchor="middle" fill="rgba(255,255,255,0.5)" className="text-[10px] font-bold">{slotAbbr}</text>
                     </g>
@@ -217,7 +219,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ currentState, analysisData
 
                   return (
                     <g key={sIdx} transform={`translate(${pos.x + dx}, ${pos.y + dy})`}>
-                      <rect 
+                      <rect
                         x={-8} y={-8} width={16} height={16} rx={3}
                         fill={`rgba(139, 92, 246, ${0.1 + freq * 0.9})`}
                         stroke="rgba(255,255,255,0.15)"
