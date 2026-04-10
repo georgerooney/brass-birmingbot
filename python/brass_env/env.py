@@ -1,12 +1,9 @@
 """
-Gymnasium environment wrapping the Brass Birmingham Go engine server.
-
-The Go server communicates over HTTP/JSON (no CGO required).
-Observations and action masks are transferred as base64-encoded binary
-to minimise serialisation overhead.
+Gymnasium environment wrapping the Brass Birmingham Go engine.
+Uses C-bindings via ctypes for high performance.
 
 Usage:
-    env = BrassEnv(num_players=2)      # connects to localhost:8765
+    env = BrassEnv(num_players=2)
     obs, info = env.reset()
     obs, reward, terminated, truncated, info = env.step(action)
     mask = env.action_masks()          # required by MaskablePPO
@@ -14,43 +11,21 @@ Usage:
 
 from __future__ import annotations
 
-import base64
-import struct
-import time
+import ctypes
+import json
+import os
+from typing import Any
 
 import gymnasium as gym
 import numpy as np
-import requests
-
-# Must match engine.ObsTotalSize (observation.go)
-_OBS_SIZE = 2396
 
 
-def _decode_obs(b64: str) -> np.ndarray:
-    """Decode base64 → LE float32 array without copy."""
-    raw = base64.b64decode(b64)
-    return np.frombuffer(raw, dtype="<f4").astype(np.float32, copy=False)
-
-
-def _decode_mask(b64: str, n: int) -> np.ndarray:
-    """Decode base64 bit-packed mask (LSB first) → bool array of length n."""
-    raw = np.frombuffer(base64.b64decode(b64), dtype=np.uint8)
-    bits = np.unpackbits(raw, bitorder="little")
-    return bits[:n].astype(np.bool_)
 
 
 class BrassEnv(gym.Env):
     """
     Single-player-perspective Gymnasium wrapper for Brass Birmingham.
-
-    The environment connects to a running brass_engine server.
-    Start the server first:
-        go run ./server   (from f:\\Projects\\brass)
-    or use train.py which handles the subprocess automatically.
-
-    Action masking:
-        env.action_masks() returns a bool np.ndarray consumed by
-        sb3_contrib.MaskablePPO.
+    Uses C-bindings via ctypes for high performance.
     """
 
     metadata = {"render_modes": []}
@@ -58,34 +33,63 @@ class BrassEnv(gym.Env):
     def __init__(
         self,
         num_players: int = 2,
-        server_url: str = "http://localhost:8765",
-        timeout: float = 10.0,
     ) -> None:
         super().__init__()
         self.num_players = num_players
-        self.server_url = server_url.rstrip("/")
-        self._env_id: int | None = None
-        self._action_size: int | None = None
-        self._action_names: list[str] | None = None
-
-        # Use a session for persistent connections (Keep-Alive) to prevent 
-        # socket exhaustion (WinError 10048) during high-FPS training.
-        self.session = requests.Session()
-
-        # Wait for the server to be ready (handles subprocess startup delay)
-        self._wait_for_server(timeout)
-
-        # Query static dimensions from server
-        info = self.session.get(f"{self.server_url}/health").json()
-        obs_size = info["obs_size"]
-        action_size = info["action_size"]
-
-        assert obs_size == _OBS_SIZE, (
-            f"Server obs_size {obs_size} != expected {_OBS_SIZE}. "
-            "Rebuild the Go server after changing ObsTotalSize."
-        )
+        
+        # Load shared library
+        lib_path = os.path.join(os.path.dirname(__file__), "brass_engine.so")
+        self.lib = ctypes.CDLL(lib_path)
+        
+        # Define arg/return types
+        self.lib.BrassNewEnv.argtypes = [ctypes.c_int32]
+        self.lib.BrassNewEnv.restype = ctypes.c_int32
+        
+        self.lib.BrassReset.argtypes = [ctypes.c_int32]
+        self.lib.BrassReset.restype = None
+        
+        self.lib.BrassFreeEnv.argtypes = [ctypes.c_int32]
+        self.lib.BrassFreeEnv.restype = None
+        
+        self.lib.BrassStep.argtypes = [
+            ctypes.c_int32,
+            ctypes.c_int32,
+            ctypes.c_double,
+            ctypes.POINTER(ctypes.c_float),
+            ctypes.POINTER(ctypes.c_int32),
+        ]
+        self.lib.BrassStep.restype = None
+        
+        self.lib.BrassObsSize.argtypes = []
+        self.lib.BrassObsSize.restype = ctypes.c_int32
+        
+        self.lib.BrassGetObs.argtypes = [ctypes.c_int32, ctypes.POINTER(ctypes.c_float)]
+        self.lib.BrassGetObs.restype = None
+        
+        self.lib.BrassActionSize.argtypes = []
+        self.lib.BrassActionSize.restype = ctypes.c_int32
+        
+        self.lib.BrassGetMask.argtypes = [ctypes.c_int32, ctypes.POINTER(ctypes.c_int32)]
+        self.lib.BrassGetMask.restype = None
+        
+        self.lib.BrassGetStateJSON.argtypes = [ctypes.c_int32, ctypes.c_char_p, ctypes.c_int]
+        self.lib.BrassGetStateJSON.restype = ctypes.c_int
+        
+        self.lib.BrassGetActionNamesJSON.argtypes = [ctypes.c_char_p, ctypes.c_int]
+        self.lib.BrassGetActionNamesJSON.restype = ctypes.c_int
+        
+        self.lib.BrassActivePlayer.argtypes = [ctypes.c_int32]
+        self.lib.BrassActivePlayer.restype = ctypes.c_int32
+        
+        self.lib.BrassPlayerVP.argtypes = [ctypes.c_int32, ctypes.c_int32]
+        self.lib.BrassPlayerVP.restype = ctypes.c_int32
+        
+        # Query static dimensions
+        obs_size = self.lib.BrassObsSize()
+        action_size = self.lib.BrassActionSize()
+        
         self._action_size = action_size
-
+        
         self.observation_space = gym.spaces.Box(
             low=0.0,
             high=1.0,
@@ -93,13 +97,16 @@ class BrassEnv(gym.Env):
             dtype=np.float32,
         )
         self.action_space = gym.spaces.Discrete(action_size)
-
-        # Stored mask — updated on every reset() and step()
-        self._mask = np.zeros(action_size, dtype=np.bool_)
+        
+        # Pre-allocate buffers for performance
+        self._obs_buf = np.zeros(obs_size, dtype=np.float32)
+        self._mask_buf = np.zeros(action_size, dtype=np.int32)
+        
         self.reward_scale = 1.0
-
-    # ─── Gymnasium API ────────────────────────────────────────────────────────
-
+        
+        # Create Go environment
+        self._env_id = self.lib.BrassNewEnv(num_players)
+        
     def reset(
         self,
         *,
@@ -108,114 +115,87 @@ class BrassEnv(gym.Env):
         include_state: bool = False,
     ) -> tuple[np.ndarray, dict]:
         super().reset(seed=seed)
-
-        if self._env_id is None:
-            # Allocate a new server-side env
-            resp = self.session.post(
-                f"{self.server_url}/envs?players={self.num_players}"
-            ).json()
-            self._env_id = resp["env_id"]
-        else:
-            # Reset the existing server-side env (preserves RNG sequence)
-            self.session.post(f"{self.server_url}/envs/{self._env_id}/reset")
-
-        url = f"{self.server_url}/envs/{self._env_id}/reset"
-        if include_state:
-            url += "?include_state=true"
-        resp = self.session.post(url).json()
-
-        obs = _decode_obs(resp["obs_b64"])
-        self._mask = _decode_mask(resp["mask_b64"], self._action_size)
         
-        info = {"state": resp.get("state")} if include_state else {}
-        # v2.5: Persist terminal stats so auto-resetting VecEnvs (SB3) can see them
-        if hasattr(self, "last_info"):
-            info["terminal_info"] = self.last_info
-            
-        return obs, info
-
-    def step(self, action: int, include_state: bool = False) -> tuple[np.ndarray, float, bool, bool, dict]:
-        url = f"{self.server_url}/envs/{self._env_id}/step"
+        self.lib.BrassReset(self._env_id)
+        
+        # Fetch observation and mask
+        self.lib.BrassGetObs(self._env_id, self._obs_buf.ctypes.data_as(ctypes.POINTER(ctypes.c_float)))
+        self.lib.BrassGetMask(self._env_id, self._mask_buf.ctypes.data_as(ctypes.POINTER(ctypes.c_int32)))
+        
+        info = {}
         if include_state:
-            url += "?include_state=true"
+            state_json = self._get_state_json()
+            info["state"] = state_json
+            if state_json:
+                self._fill_diagnostic_info(info, state_json)
             
-        resp = self.session.post(
-            url,
-            json={
-                "action": int(action),
-                "dense_reward_scale": float(self.reward_scale),
-            },
-        ).json()
-
-        obs = _decode_obs(resp["obs_b64"])
-        self._mask = _decode_mask(resp["mask_b64"], self._action_size)
-
-        terminated = bool(resp["done"])
-        truncated = False  # Brass has no time limit; it always terminates naturally
-        info: dict = {
-            "vps": resp.get("vps", []),
-            "vps_industries": resp.get("vps_industries", []),
-            "vps_links": resp.get("vps_links", []),
-            "vps_merchant": resp.get("vps_merchant", []),
-            "consumed_opponent_coal": resp.get("consumed_opponent_coal", []),
-            "consumed_opponent_iron": resp.get("consumed_opponent_iron", []),
-            "step_metadata": resp.get("metadata", {}),
-            "state": resp.get("state"), # Full state snapshot if requested
-            "winner": int(np.argmax(resp.get("vps", [0,0]))) if terminated else -1
-        }
-        self.last_info = info.copy() # Store for reset persistence
-        return obs, float(resp["reward"]), terminated, truncated, info
-
+        return self._obs_buf.copy(), info
+        
+    def step(self, action: int, include_state: bool = False) -> tuple[np.ndarray, float, bool, bool, dict]:
+        reward = ctypes.c_float(0.0)
+        done = ctypes.c_int32(0)
+        
+        self.lib.BrassStep(
+            self._env_id,
+            ctypes.c_int32(action),
+            ctypes.c_double(self.reward_scale),
+            ctypes.byref(reward),
+            ctypes.byref(done),
+        )
+        
+        # Fetch observation and mask
+        self.lib.BrassGetObs(self._env_id, self._obs_buf.ctypes.data_as(ctypes.POINTER(ctypes.c_float)))
+        self.lib.BrassGetMask(self._env_id, self._mask_buf.ctypes.data_as(ctypes.POINTER(ctypes.c_int32)))
+        
+        terminated = bool(done.value)
+        truncated = False
+        
+        info = {}
+        
+        if include_state:
+            state_json = self._get_state_json()
+            info["state"] = state_json
+            if state_json:
+                self._fill_diagnostic_info(info, state_json)
+                
+        if terminated:
+            if "vps" not in info:
+                vps = [self.lib.BrassPlayerVP(self._env_id, i) for i in range(self.num_players)]
+                info["vps"] = vps
+            info["winner"] = int(np.argmax(info["vps"]))
+            
+        return self._obs_buf.copy(), float(reward.value), terminated, truncated, info
+        
     def action_masks(self) -> np.ndarray:
-        """
-        Returns the valid-action mask for the current state.
-        Called by sb3_contrib.MaskablePPO before each action selection.
-        """
-        return self._mask
-
+        return self._mask_buf.astype(np.bool_)
+        
+    def _get_state_json(self) -> dict | None:
+        max_len = 1024 * 1024 # 1MB should be enough for state JSON
+        buf = ctypes.create_string_buffer(max_len)
+        res = self.lib.BrassGetStateJSON(self._env_id, buf, max_len)
+        if res > 0:
+            return json.loads(buf.value[:res])
+        return None
+        
+    def _fill_diagnostic_info(self, info: dict, state_json: dict) -> None:
+        players = state_json.get("players", [])
+        info["vps_industries"] = [p.get("vp_audit_industries", 0) for p in players]
+        info["vps_links"] = [p.get("vp_audit_links", 0) for p in players]
+        info["consumed_opponent_coal"] = [p.get("consumed_opponent_coal", 0) for p in players]
+        info["consumed_opponent_iron"] = [p.get("consumed_opponent_iron", 0) for p in players]
+        info["vps"] = [p.get("vp_audit_industries", 0) + p.get("vp_audit_links", 0) for p in players]
+        
     def get_action_names(self) -> list[str]:
-        """Fetch human-readable action names from the server (cached)."""
-        if self._action_names is None:
-            resp = self.session.get(f"{self.server_url}/actions")
-            if resp.status_code == 200:
-                self._action_names = resp.json()
-            else:
-                self._action_names = [f"Action {i}" for i in range(self.action_space.n)]
-        return self._action_names
-
-    def set_reward_scale(self, scale: float) -> None:
-        """Update the dense reward scale factor [0, 1]."""
-        self.reward_scale = scale
-
+        max_len = 1024 * 1024 # 1MB should be enough
+        buf = ctypes.create_string_buffer(max_len)
+        res = self.lib.BrassGetActionNamesJSON(buf, max_len)
+        if res > 0:
+            return json.loads(buf.value[:res])
+        return [f"Action {i}" for i in range(self.action_space.n)]
+        
     def close(self) -> None:
-        if self._env_id is not None:
-            try:
-                self.session.delete(
-                    f"{self.server_url}/envs/{self._env_id}/free",
-                    timeout=2,
-                )
-            except Exception:
-                pass
-            self._env_id = None
-        self.session.close()
-
-    def render(self) -> None:
-        pass  # Terminal/GUI rendering out of scope for RL training
-
-    # ─── Helpers ──────────────────────────────────────────────────────────────
-
-    def _wait_for_server(self, timeout: float) -> None:
-        deadline = time.monotonic() + timeout
-        last_exc: Exception | None = None
-        while time.monotonic() < deadline:
-            try:
-                self.session.get(f"{self.server_url}/health", timeout=1).raise_for_status()
-                return
-            except Exception as e:
-                last_exc = e
-                time.sleep(0.25)
-        raise RuntimeError(
-            f"Brass server not reachable at {self.server_url} after {timeout}s. "
-            f"Last error: {last_exc}\n"
-            "Start it with:  go run ./server   (from f:\\Projects\\brass)"
-        ) from last_exc
+        if hasattr(self, "_env_id"):
+            self.lib.BrassFreeEnv(self._env_id)
+            
+    def set_reward_scale(self, scale: float) -> None:
+        self.reward_scale = scale

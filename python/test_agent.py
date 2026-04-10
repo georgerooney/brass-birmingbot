@@ -8,14 +8,13 @@ from collections import Counter
 import pandas as pd
 import json
 import subprocess
-from brass_env.server import ensure_server
-
-ROOT = Path(__file__).resolve().parent.parent
+import torch as th
+# Removed server import
 
 def run_eval(model_path: str, num_episodes: int = 20, output_dir_path: str = "eval_data", render_sample: bool = True, deterministic: bool = True, trace_limit: int = 20):
     print(f"Loading model: {model_path}")
     env = BrassEnv(num_players=2)
-    model = MaskablePPO.load(model_path, env=env, device="cuda")
+    model = MaskablePPO.load(model_path, env=env, device="cuda" if th.cuda.is_available() else "cpu")
     
     action_names = env.get_action_names()
     
@@ -179,14 +178,9 @@ if __name__ == "__main__":
     parser.add_argument("--no-server", action="store_true", help="Skip server launch")
     args = parser.parse_args()
     
-    server_proc = None
-    if not args.no_server:
-        server_proc = ensure_server(ROOT)
+    # Removed server launch
     
     try:
         run_eval(args.model, args.episodes, args.output, deterministic=not args.sample, trace_limit=args.trace_limit)
     finally:
-        if server_proc is not None:
-            server_proc.terminate()
-            server_proc.wait()
-            print("Server stopped.")
+        pass

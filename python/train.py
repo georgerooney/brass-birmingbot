@@ -41,8 +41,7 @@ class CurriculumState:
         self.decay_steps = decay_steps
         self.num_timesteps = 0
 
-ROOT = Path(__file__).resolve().parent.parent  # d:\projects\brass
-from brass_env.server import ensure_server
+# Removed server import
 
 # --- Global Helpers ---
 
@@ -62,6 +61,9 @@ class BrassExpertExtractor(BaseFeaturesExtractor):
         super().__init__(observation_space, features_dim)
         # Slices (must match engine/observation.go)
         self.board_size = 2204
+        assert observation_space.shape[0] >= self.board_size, (
+            f"Observation size {observation_space.shape[0]} is smaller than board_size {self.board_size}"
+        )
         
         # Board Encoder: Legacy 1024-dimensional capacity
         self.board_encoder = nn.Sequential(
@@ -234,9 +236,7 @@ def main() -> None:
     checkpoint_dir = run_dir / "checkpoints"
     tensorboard_dir = run_dir / "tb_logs"
 
-    server_proc = None
-    if not args.no_server:
-        server_proc = ensure_server(ROOT)
+    # Removed server launch
 
     try:
         print(f"Spinning up {args.envs} parallel environments...")
@@ -287,7 +287,7 @@ def main() -> None:
                 learning_rate=lr_schedule,
                 policy_kwargs=policy_kwargs,
                 verbose=1,
-                device="cuda",
+                device="cuda" if th.cuda.is_available() else "cpu",
                 tensorboard_log=str(tensorboard_dir),
             )
 
@@ -321,10 +321,7 @@ def main() -> None:
         vec_env.close()
 
     finally:
-        if server_proc is not None:
-            server_proc.terminate()
-            server_proc.wait()
-            print("Server stopped.")
+        pass
 
 
 if __name__ == "__main__":
