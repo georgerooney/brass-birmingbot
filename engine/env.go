@@ -646,8 +646,8 @@ func (e *Env) ComputeTerminalReward(active PlayerId) float64 {
 }
 
 // ChooseBestCardForAction implements the V3.0 heuristic for automated card selection.
-// Heuristic: IndustryCard(matching) > LocationCard(matching) > WildIndustry > WildLocation.
-// For non-build actions: Any Non-Wild > Any Wild.
+// Rationale: Preserve flexibility by using the most specific card available for the chosen action.
+// Priority: LocationCard > IndustryCard > Wild Cards (lower score is better).
 func (e *Env) ChooseBestCardForAction(p *PlayerState, action Action) int {
 	// First, identify which cards are actually valid for this specific action
 	var validSlots []int
@@ -663,7 +663,10 @@ func (e *Env) ChooseBestCardForAction(p *PlayerState, action Action) int {
 		return -1
 	}
 
-		// Priority scoring: lower is better (Location > Industry > Wild)
+		// Priority scoring: lower is better.
+		// We prefer using specific cards over flexible cards to preserve options.
+		// For Build: Location card for the specific city is the most specific.
+		// For non-build actions: Any normal card is preferred over Wild cards.
 		scoreSlot := func(slotIdx int) int {
 			actualIdx, _ := e.GetActualHandIndex(slotIdx)
 			card := p.Hand[actualIdx]

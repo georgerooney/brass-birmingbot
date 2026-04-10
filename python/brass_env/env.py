@@ -193,6 +193,11 @@ class BrassEnv(gym.Env):
         max_len = 1024 * 1024 # 1MB should be enough for state JSON
         buf = ctypes.create_string_buffer(max_len)
         res = self.lib.BrassGetStateJSON(self._env_id, buf, max_len)
+        if res < 0:
+            # Buffer was too small, res is negative needed size
+            max_len = -res
+            buf = ctypes.create_string_buffer(max_len)
+            res = self.lib.BrassGetStateJSON(self._env_id, buf, max_len)
         if res > 0:
             return json.loads(buf.value[:res])
         return None
@@ -201,6 +206,11 @@ class BrassEnv(gym.Env):
         max_len = 64 * 1024 # 64KB should be enough for metadata
         buf = ctypes.create_string_buffer(max_len)
         res = self.lib.BrassGetStepMetadataJSON(self._env_id, buf, max_len)
+        if res < 0:
+            # Buffer was too small, res is negative needed size
+            max_len = -res
+            buf = ctypes.create_string_buffer(max_len)
+            res = self.lib.BrassGetStepMetadataJSON(self._env_id, buf, max_len)
         if res > 0:
             return json.loads(buf.value[:res])
         return None
