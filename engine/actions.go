@@ -6,8 +6,8 @@ type ActionType int
 
 const (
 	ActionBuildIndustry ActionType = iota
-	ActionBuildLink
-	ActionBuildLinkDouble
+	ActionNetwork
+	ActionNetworkDouble
 	ActionDevelop
 	ActionSell // Just one action - greedy execution handles permutations internally
 	ActionLoan
@@ -68,7 +68,7 @@ func BuildActionRegistry(board *MapGraph) {
 		}
 		ActionRegistry = append(ActionRegistry, Action{
 			ID:       id,
-			Type:     ActionBuildLink,
+			Type:     ActionNetwork,
 			RouteID:  route.ID,
 			RouteID2: -1,
 			SlotIndex: -1,
@@ -143,7 +143,7 @@ func BuildActionRegistry(board *MapGraph) {
 			}
 			ActionRegistry = append(ActionRegistry, Action{
 				ID:       id,
-				Type:     ActionBuildLinkDouble,
+				Type:     ActionNetworkDouble,
 				RouteID:  board.Routes[i].ID,
 				RouteID2: board.Routes[j].ID,
 				SlotIndex: -1,
@@ -163,13 +163,13 @@ func (a Action) Name(board *MapGraph) string {
 	case ActionBuildIndustry:
 		city := board.Cities[a.CityID]
 		return "Build " + a.IndustryType.String() + " in " + city.Name
-	case ActionBuildLink:
+	case ActionNetwork:
 		route := board.Routes[a.RouteID]
-		return "Build Link: " + board.Cities[route.CityA].Name + " <-> " + board.Cities[route.CityB].Name
-	case ActionBuildLinkDouble:
+		return "Network: " + board.Cities[route.CityA].Name + " <-> " + board.Cities[route.CityB].Name
+	case ActionNetworkDouble:
 		r1 := board.Routes[a.RouteID]
 		r2 := board.Routes[a.RouteID2]
-		return "Build Double Rail: [" + board.Cities[r1.CityA].Name + "-" + board.Cities[r1.CityB].Name + "]" +
+		return "Network (Double): [" + board.Cities[r1.CityA].Name + "-" + board.Cities[r1.CityB].Name + "]" +
 			" & [" + board.Cities[r2.CityA].Name + "-" + board.Cities[r2.CityB].Name + "]"
 	case ActionDevelop:
 		if a.IndustryType2 == -1 {

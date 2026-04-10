@@ -20,8 +20,8 @@ func main() {
 
 	fmt.Println("Breakdown:")
 	fmt.Printf("  Build Industry: %d\n", counts[engine.ActionBuildIndustry])
-	fmt.Printf("  Build Link:     %d\n", counts[engine.ActionBuildLink])
-	fmt.Printf("  Build Double:   %d\n", counts[engine.ActionBuildLinkDouble])
+	fmt.Printf("  Build Link:     %d\n", counts[engine.ActionNetwork])
+	fmt.Printf("  Build Double:   %d\n", counts[engine.ActionNetworkDouble])
 	fmt.Printf("  Develop:        %d\n", counts[engine.ActionDevelop])
 	fmt.Printf("  Sell:           %d\n", counts[engine.ActionSell])
 	fmt.Printf("  Loan:           %d\n", counts[engine.ActionLoan])

@@ -352,7 +352,7 @@ func FillObservation(gs *GameState, buf []float32) {
 
 		// Validity Mask (Build, Network, Develop, Sell, Loan, Pass)
 		if gs.CanCardAction(c, ActionBuildIndustry) { buf[base+14]=1 }
-		if gs.CanCardAction(c, ActionBuildLink)      { buf[base+15]=1 }
+		if gs.CanCardAction(c, ActionNetwork)      { buf[base+15]=1 }
 		if gs.CanCardAction(c, ActionDevelop)        { buf[base+16]=1 }
 		if gs.CanCardAction(c, ActionSell)           { buf[base+17]=1 }
 		if gs.CanCardAction(c, ActionLoan)           { buf[base+18]=1 }
@@ -522,7 +522,7 @@ func (gs *GameState) CanCardAction(c Card, actionType ActionType) bool {
 	case ActionBuildIndustry:
 		// Simplified validation for observation validity mask
 		return gs.CanBurnCardForBuild(CityID(c.CityID), c.Industry, gs.Active)
-	case ActionBuildLink:
+	case ActionNetwork:
 		return len(p.Hand) >= 1 // Any card can be used for a link
 	case ActionDevelop:
 		return len(p.Hand) >= 1

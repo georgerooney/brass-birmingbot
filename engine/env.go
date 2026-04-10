@@ -312,7 +312,7 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 			reward += (float64(moneySpent) * 0.0) * denseRewardScale
 		}
 
-	case ActionBuildLink:
+	case ActionNetwork:
 		route := &e.State.Board.Routes[action.RouteID]
 		moneyBefore := player.Money
 		wasConnectedA := e.State.IsMerchantConnected(route.CityA)
@@ -354,7 +354,7 @@ func (e *Env) Step(actionID int, includeMetadata bool, denseRewardScale float64)
 			reward += (float64(moneySpent) * 0.0) * denseRewardScale
 		}
 
-	case ActionBuildLinkDouble:
+	case ActionNetworkDouble:
 		r1ID := action.RouteID
 		r2ID := action.RouteID2
 		

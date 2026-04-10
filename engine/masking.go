@@ -124,7 +124,7 @@ func (env *Env) isValidActionWithCard(p *PlayerState, action Action, cardIdx int
 
 		return true
 
-	case ActionBuildLink:
+	case ActionNetwork:
 		route := env.State.Board.Routes[action.RouteID]
 		if route.IsBuilt {
 			return false
@@ -168,7 +168,7 @@ func (env *Env) isValidActionWithCard(p *PlayerState, action Action, cardIdx int
 		// 2. Network Adjacency Rule (Rail era links must be connected to network)
 		return true
 
-	case ActionBuildLinkDouble:
+	case ActionNetworkDouble:
 		// Fast-path chain: each guard is cheaper than the last.
 		// The full ~2080-entry registry is handled efficiently because nearly all
 		// entries are eliminated here before any BFS fires.

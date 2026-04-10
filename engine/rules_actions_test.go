@@ -171,14 +171,14 @@ func TestCanalEraRailRestriction(t *testing.T) {
 
 	action0 := -1
 	for _, a := range ActionRegistry {
-		if a.Type == ActionBuildLink && a.RouteID == 0 {
+		if a.Type == ActionNetwork && a.RouteID == 0 {
 			action0 = a.ID
 			break
 		}
 	}
 
 	if action0 == -1 {
-		t.Fatal("Could not find ActionBuildLink for route 0")
+		t.Fatal("Could not find ActionNetwork for route 0")
 	}
 
 	mask := env.GetActionMask()
@@ -226,14 +226,14 @@ func TestRailEraCanalRestriction(t *testing.T) {
 
 	action0 := -1
 	for _, a := range ActionRegistry {
-		if a.Type == ActionBuildLink && a.RouteID == 0 {
+		if a.Type == ActionNetwork && a.RouteID == 0 {
 			action0 = a.ID
 			break
 		}
 	}
 
 	if action0 == -1 {
-		t.Fatal("Could not find ActionBuildLink for route 0")
+		t.Fatal("Could not find ActionNetwork for route 0")
 	}
 
 	mask := env.GetActionMask()
@@ -302,7 +302,7 @@ func TestDoubleRailBeerConnection(t *testing.T) {
 	// Find Double Rail action for routes 0 and 1
 	actionDouble := -1
 	for _, a := range ActionRegistry {
-		if a.Type == ActionBuildLinkDouble && 
+		if a.Type == ActionNetworkDouble && 
 			((a.RouteID == 0 && a.RouteID2 == 1) || (a.RouteID == 1 && a.RouteID2 == 0)) {
 			actionDouble = a.ID
 			break
@@ -310,7 +310,7 @@ func TestDoubleRailBeerConnection(t *testing.T) {
 	}
 
 	if actionDouble == -1 {
-		t.Fatal("Could not find ActionBuildLinkDouble for routes 0 and 1")
+		t.Fatal("Could not find ActionNetworkDouble for routes 0 and 1")
 	}
 
 	mask := env.GetActionMask()

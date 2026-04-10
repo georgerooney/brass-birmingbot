@@ -266,7 +266,12 @@ def run_diagnostics(model_path: str, num_episodes: int, log_file: str, train_ste
                 action_name = action_names[action]
                 specific_moves[action_name] += 1
                 
-                move_type = action_name.split()[0]
+                if action_name.startswith("Network (Double)"):
+                    move_type = "Network (Double)"
+                elif action_name.startswith("Network"):
+                    move_type = "Network"
+                else:
+                    move_type = action_name.split()[0]
                 move_types[move_type] += 1
                 
                 obs, reward, terminated, truncated, info = env.step(action)
