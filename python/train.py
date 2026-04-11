@@ -223,10 +223,6 @@ def main() -> None:
         vec_env = SubprocVecEnv(env_fns)
         vec_env = VecMonitor(vec_env)
 
-        # Query board size from environment
-        board_size = vec_env.get_attr("board_size")[0]
-        print(f"Queried board size: {board_size}")
-
         if args.use_transformer:
             policy_kwargs = dict(
                 features_extractor_class=CardAttentionExtractor,

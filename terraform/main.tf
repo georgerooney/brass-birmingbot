@@ -153,7 +153,7 @@ resource "google_compute_instance" "brass_vm" {
 
   boot_disk {
     initialize_params {
-      image = "projects/deeplearning-platform-release/global/images/family/common-cu128-ubuntu-2204-nvidia-570"
+      image = "projects/deeplearning-platform-release/global/images/family/pytorch-2-7-cu128-ubuntu-2204-nvidia-570"
       size  = 100
     }
   }
@@ -183,33 +183,26 @@ resource "google_compute_instance" "brass_vm" {
     install-nvidia-driver = "true"
     startup-script        = <<-EOT
       #!/bin/bash
-      # Create app dir
-      mkdir -p /app
       
-      # Install Docker
+      echo "--- INSTALLING DOCKER ---"
       apt-get update
       apt-get install -y docker.io
-      systemctl start docker
-      systemctl enable docker
-      
+
+      echo "--- CONFIGURING DOCKER TO SEE GPUS ---"
+      # Try to configure it, assuming nvidia-ctk is available on DLVM
+      nvidia-ctk runtime configure --runtime=docker || echo "nvidia-ctk failed or not found"
+      systemctl restart docker
+
+      echo "--- SETTING UP BRASS-RL ENVIRONMENT ---"
+      mkdir -p /app
+
       # Write .env.local from metadata
       echo "${base64encode(local.env_content)}" | base64 -d > /app/.env.local
       
       # Authenticate Docker to Artifact Registry
       gcloud auth configure-docker ${var.region}-docker.pkg.dev --quiet
       
-      # Run the container
-      # Mount .env.local into the container at the expected location (python/.env.local or root .env.local?)
-      # We updated train.py to look in parent dir of train.py, which is root if running from python/!
-      # Wait, train.py uses `Path(__file__).parent.parent / ".env.local"`.
-      # If train.py is in `/app/python/train.py`, its parent is `/app/python/`.
-      # Its parent.parent is `/app/`.
-      # So it expects it at `/app/.env.local`!
-      
       docker run --gpus all -v /app/.env.local:/app/.env.local ${var.region}-docker.pkg.dev/${var.project_id}/brass-rl/brass-rl:latest
-      
-      # Shut down the instance after training completes
-      sudo poweroff
     EOT
   }
 
